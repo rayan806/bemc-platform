@@ -111,6 +111,72 @@ bemc-platform/
 - `utils/jwt.js`: firma y validacion de tokens.
 - `utils/audit.js`: bitacora de acciones relevantes.
 
+## Referencia completa por archivo
+
+### Frontend (client/src)
+
+| Archivo | Responsabilidad |
+|---------|------------------|
+| `client/src/main.jsx` | Punto de entrada del frontend; monta React con `BrowserRouter`, `AuthProvider` y estilos globales. |
+| `client/src/App.jsx` | Router principal; define rutas públicas, auth, portal cliente y admin con protección por rol. |
+| `client/src/api/client.js` | Cliente HTTP (Axios) con token JWT automático y manejo global de errores `401`. |
+| `client/src/context/AuthContext.jsx` | Estado global de autenticación: login, register, logout, OAuth y persistencia en localStorage. |
+| `client/src/components/PublicLayout.jsx` | Layout base para páginas públicas con navegación superior. |
+| `client/src/components/ClientLayout.jsx` | Layout del portal cliente con navegación interna. |
+| `client/src/components/AdminLayout.jsx` | Layout administrativo con menú lateral y navegación por módulos. |
+| `client/src/components/ProtectedRoute.jsx` | Componente de guardia para restringir acceso por autenticación y rol (`staffOnly`). |
+| `client/src/components/auth/AuthLayout.jsx` | Layout visual compartido para páginas de autenticación. |
+| `client/src/components/auth/AuthGlassCard.jsx` | Contenedor visual reutilizable para formularios de auth. |
+| `client/src/components/auth/PasswordInput.jsx` | Campo de contraseña con visibilidad toggle (mostrar/ocultar). |
+| `client/src/components/auth/SocialAuthButtons.jsx` | Botones de login social (Google/Facebook) para flujo OAuth. |
+| `client/src/pages/HomePage.jsx` | Página principal pública con presentación de servicios y CTA. |
+| `client/src/pages/ServicesPage.jsx` | Catálogo de servicios SST con filtros y navegación a detalle. |
+| `client/src/pages/ServiceDetailPage.jsx` | Detalle de un servicio y formulario para crear solicitud. |
+| `client/src/pages/LoginPage.jsx` | Formulario de inicio de sesión (local + opciones OAuth). |
+| `client/src/pages/RegisterPage.jsx` | Registro de usuario persona/empresa con validaciones de formulario. |
+| `client/src/pages/ForgotPasswordPage.jsx` | Flujo para solicitar recuperación de contraseña. |
+| `client/src/pages/ResetPasswordPage.jsx` | Restablecimiento de contraseña usando token temporal. |
+| `client/src/pages/AuthCallbackPage.jsx` | Manejo del callback OAuth y almacenamiento de sesión. |
+| `client/src/pages/portal/PortalHome.jsx` | Dashboard inicial del cliente autenticado. |
+| `client/src/pages/portal/PortalServices.jsx` | Vista de servicios dentro del portal cliente. |
+| `client/src/pages/portal/PortalRequests.jsx` | Historial de solicitudes del cliente con estados y detalle. |
+| `client/src/pages/admin/AdminDashboard.jsx` | Métricas administrativas y resumen operativo. |
+| `client/src/pages/admin/AdminRequests.jsx` | Gestión de solicitudes (filtros, actualización de estado, notas). |
+| `client/src/pages/admin/AdminClients.jsx` | Administración/listado de clientes registrados. |
+| `client/src/pages/admin/AdminCompanies.jsx` | Administración/listado de empresas registradas. |
+| `client/src/pages/admin/AdminPayments.jsx` | Gestión y confirmación manual de pagos. |
+| `client/src/pages/admin/AdminServices.jsx` | Gestión/listado administrativo de servicios. |
+| `client/src/utils/servicePresentation.js` | Normalización de categorías, etiquetas e iconografía de servicios. |
+| `client/src/styles/index.css` | Estilos globales y variables de diseño de la aplicación. |
+| `client/src/styles/auth.css` | Estilos específicos de páginas y componentes de autenticación. |
+| `client/src/assets/bemc-logo.png` | Recurso gráfico del logo principal del sistema. |
+
+### Backend (server/src)
+
+| Archivo | Responsabilidad |
+|---------|------------------|
+| `server/src/index.js` | Bootstrap de Express: middlewares, rutas API, estáticos frontend, conexión DB y arranque HTTP. |
+| `server/src/config/db.js` | Conexión MongoDB principal y fallback en memoria para desarrollo local. |
+| `server/src/middleware/auth.js` | Autenticación JWT y autorización por roles para rutas protegidas. |
+| `server/src/middleware/errorHandler.js` | Manejo centralizado de errores y respuestas de rutas no encontradas. |
+| `server/src/models/User.js` | Modelo de usuario con perfil, autenticación local y proveedores OAuth. |
+| `server/src/models/Company.js` | Modelo de empresa asociado a usuarios y datos legales/comerciales. |
+| `server/src/models/Service.js` | Modelo de servicios SST (precio, categoría, requisitos, estado). |
+| `server/src/models/ServiceRequest.js` | Modelo de solicitud de servicio y su ciclo de vida operativo. |
+| `server/src/models/Payment.js` | Modelo de pago vinculado a solicitud, con estado y confirmación. |
+| `server/src/models/Document.js` | Modelo de documentos por solicitud con categorías y versionado. |
+| `server/src/models/AuditLog.js` | Bitácora de auditoría para trazabilidad de acciones críticas. |
+| `server/src/routes/auth.routes.js` | Endpoints de autenticación: registro, login, perfil, OAuth y recuperación. |
+| `server/src/routes/services.routes.js` | Endpoints CRUD/consulta de servicios SST. |
+| `server/src/routes/requests.routes.js` | Endpoints para crear y administrar solicitudes de servicio. |
+| `server/src/routes/payments.routes.js` | Endpoints para consulta y confirmación de pagos. |
+| `server/src/routes/admin.routes.js` | Endpoints administrativos de dashboard y gestión operativa. |
+| `server/src/services/oauth.service.js` | Lógica de OAuth (state, intercambio de código, upsert de usuario). |
+| `server/src/seed/seedAdmin.js` | Seed de administrador inicial para primer arranque. |
+| `server/src/seed/seedServices.js` | Seed del catálogo base de servicios SST. |
+| `server/src/utils/jwt.js` | Utilidades para firmar/verificar tokens JWT. |
+| `server/src/utils/audit.js` | Utilidad para registrar eventos de auditoría en base de datos. |
+
 ## Flujo funcional resumido
 
 1. Usuario se registra o inicia sesion.
