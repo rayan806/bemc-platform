@@ -78,6 +78,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 async function start() {
+  // Startup order: DB -> seeds -> HTTP server
   await connectDB();
   await seedServicesIfEmpty();
   await seedAdminIfMissing();

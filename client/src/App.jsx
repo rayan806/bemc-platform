@@ -25,6 +25,7 @@ import AdminServices from './pages/admin/AdminServices';
 export default function App() {
   return (
     <Routes>
+      {/* Auth pages */}
       <Route element={<AuthLayout />}>
         <Route path="login" element={<LoginPage />} />
         <Route path="registro" element={<RegisterPage />} />
@@ -33,12 +34,14 @@ export default function App() {
         <Route path="auth/callback" element={<AuthCallbackPage />} />
       </Route>
 
+      {/* Public pages */}
       <Route element={<PublicLayout />}>
         <Route index element={<HomePage />} />
         <Route path="servicios" element={<ServicesPage />} />
         <Route path="servicios/:slug" element={<ServiceDetailPage />} />
       </Route>
 
+      {/* Client portal routes */}
       <Route
         path="portal"
         element={
@@ -52,6 +55,7 @@ export default function App() {
         <Route path="solicitudes" element={<PortalRequests />} />
       </Route>
 
+      {/* Admin routes */}
       <Route
         path="admin"
         element={
