@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { connectDB } from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
@@ -53,6 +54,21 @@ app.get('/api/health', (req, res) => {
 
 const clientDistPath = path.join(__dirname, '../../client/dist');
 if (process.env.NODE_ENV === 'production') {
+  if (!fs.existsSync(clientDistPath)) {
+    console.warn('Advertencia: no se encontró el directorio estático del cliente:', clientDistPath);
+    try {
+      const root = path.join(__dirname, '..', '..');
+      const found = fs.readdirSync(root).slice(0, 50);
+      console.warn('Contenido del repositorio raíz (parcial):', found);
+    } catch (err) {
+      console.warn('No se pudo leer el contenido del repositorio raíz:', err.message);
+    }
+  } else {
+    const indexFile = path.join(clientDistPath, 'index.html');
+    if (!fs.existsSync(indexFile)) {
+      console.warn('Advertencia: index.html no encontrado en client/dist:', indexFile);
+    }
+  }
   app.use(express.static(clientDistPath));
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api')) {
