@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/AuthCallbackPage.jsx
+ * Proposito: Procesa callback OAuth y finaliza autenticacion.
+ */
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';

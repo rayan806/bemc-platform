@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/PublicLayout.jsx
+ * Proposito: Layout base para vistas publicas.
+ */
+
 import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/bemc-logo.png';

@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/RegisterPage.jsx
+ * Proposito: Formulario de registro para persona o empresa.
+ */
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';

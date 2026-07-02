@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/context/AuthContext.jsx
+ * Proposito: Estado global de autenticacion y acciones de sesion del usuario.
+ */
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import api from '../api/client';
 

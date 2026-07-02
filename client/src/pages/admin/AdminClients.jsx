@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/admin/AdminClients.jsx
+ * Proposito: Listado administrativo de clientes.
+ */
+
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 

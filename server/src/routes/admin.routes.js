@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/routes/admin.routes.js
+ * Proposito: Rutas administrativas de tablero y gestion.
+ */
+
 import { Router } from 'express';
 import { User } from '../models/User.js';
 import { Company } from '../models/Company.js';

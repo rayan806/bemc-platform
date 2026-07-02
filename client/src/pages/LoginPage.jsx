@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/LoginPage.jsx
+ * Proposito: Formulario de inicio de sesion (local y social).
+ */
+
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';

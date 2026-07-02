@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/admin/AdminRequests.jsx
+ * Proposito: Gestion administrativa de solicitudes.
+ */
+
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 

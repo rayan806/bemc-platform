@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/admin/AdminServices.jsx
+ * Proposito: Gestion/listado de servicios para admin.
+ */
+
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 

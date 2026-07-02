@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/Payment.js
+ * Proposito: Modelo de pagos asociados a solicitudes.
+ */
+
 import mongoose from 'mongoose';
 
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded', 'overdue'];

@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/services/oauth.service.js
+ * Proposito: Logica de integracion OAuth con proveedores externos.
+ */
+
 import crypto from 'crypto';
 import { User } from '../models/User.js';
 import { signToken } from '../utils/jwt.js';

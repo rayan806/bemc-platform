@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/ResetPasswordPage.jsx
+ * Proposito: Actualizacion de contrasena usando token temporal.
+ */
+
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';

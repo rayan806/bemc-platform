@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/utils/servicePresentation.js
+ * Proposito: Mapeos de presentacion visual para servicios.
+ */
+
 export const categoryLabels = {
   'sg-sst': 'SG-SST',
   auditoria: 'Auditoria',

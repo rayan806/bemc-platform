@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/admin/AdminDashboard.jsx
+ * Proposito: Metricas principales para operacion administrativa.
+ */
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';

@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/Company.js
+ * Proposito: Modelo de empresas vinculadas a clientes.
+ */
+
 import mongoose from 'mongoose';
 
 const companySchema = new mongoose.Schema(

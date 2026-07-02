@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/ProtectedRoute.jsx
+ * Proposito: Guard de rutas privadas segun autenticacion y rol.
+ */
+
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 

@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/api/client.js
+ * Proposito: Cliente HTTP central (Axios) con JWT y manejo global de 401.
+ */
+
 import axios from 'axios';
 
 const api = axios.create({

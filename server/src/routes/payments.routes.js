@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/routes/payments.routes.js
+ * Proposito: Rutas para pagos y confirmaciones.
+ */
+
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { Payment } from '../models/Payment.js';

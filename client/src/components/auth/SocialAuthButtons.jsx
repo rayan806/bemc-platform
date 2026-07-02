@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/auth/SocialAuthButtons.jsx
+ * Proposito: Botones para iniciar sesion con proveedores OAuth.
+ */
+
 import { useState } from 'react';
 import api from '../../api/client';
 

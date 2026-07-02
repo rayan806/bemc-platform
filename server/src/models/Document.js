@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/Document.js
+ * Proposito: Modelo de documentos adjuntos y versionado.
+ */
+
 import mongoose from 'mongoose';
 
 const DOCUMENT_CATEGORIES = [

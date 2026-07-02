@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/routes/auth.routes.js
+ * Proposito: Rutas de autenticacion, perfil y OAuth.
+ */
+
 import { Router } from 'express';
 import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';

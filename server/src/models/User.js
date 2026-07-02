@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/User.js
+ * Proposito: Modelo de usuarios y metodos de autenticacion.
+ */
+
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 

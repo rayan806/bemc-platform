@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/ServiceDetailPage.jsx
+ * Proposito: Detalle de servicio y accion para crear solicitud.
+ */
+
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';

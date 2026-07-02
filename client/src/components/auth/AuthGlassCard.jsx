@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/auth/AuthGlassCard.jsx
+ * Proposito: Contenedor visual reutilizable para formularios de auth.
+ */
+
 import logo from '../../assets/bemc-logo.png';
 
 export default function AuthGlassCard({ title, subtitle, wide, children }) {

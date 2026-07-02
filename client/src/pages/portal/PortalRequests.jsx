@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/portal/PortalRequests.jsx
+ * Proposito: Historial y estado de solicitudes del cliente.
+ */
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';

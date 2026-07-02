@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/ClientLayout.jsx
+ * Proposito: Layout base para el portal del cliente autenticado.
+ */
+
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 

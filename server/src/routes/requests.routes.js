@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/routes/requests.routes.js
+ * Proposito: Rutas para crear y administrar solicitudes.
+ */
+
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { ServiceRequest } from '../models/ServiceRequest.js';

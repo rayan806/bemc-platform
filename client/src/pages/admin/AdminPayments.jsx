@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/admin/AdminPayments.jsx
+ * Proposito: Gestion y confirmacion de pagos.
+ */
+
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 

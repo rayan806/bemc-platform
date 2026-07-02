@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/index.js
+ * Proposito: Bootstrap del backend: middlewares, rutas, static y arranque HTTP.
+ */
+
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';

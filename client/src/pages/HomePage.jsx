@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/HomePage.jsx
+ * Proposito: Pagina de inicio publica con presentacion comercial.
+ */
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';

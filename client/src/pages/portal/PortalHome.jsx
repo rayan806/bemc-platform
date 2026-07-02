@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/portal/PortalHome.jsx
+ * Proposito: Dashboard principal del cliente.
+ */
+
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 

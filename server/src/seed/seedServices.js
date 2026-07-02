@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/seed/seedServices.js
+ * Proposito: Seed del catalogo base de servicios.
+ */
+
 import { Service } from '../models/Service.js';
 
 const defaultServices = [

@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/config/db.js
+ * Proposito: Conexion a MongoDB y fallback en memoria para desarrollo.
+ */
+
 import mongoose from 'mongoose';
 
 let memoryServer;

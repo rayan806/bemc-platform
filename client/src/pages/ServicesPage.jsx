@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/ServicesPage.jsx
+ * Proposito: Listado publico de servicios SST con filtros visuales.
+ */
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';

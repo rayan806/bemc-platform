@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/seed/seedAdmin.js
+ * Proposito: Seed de usuario administrador inicial.
+ */
+
 import { User } from '../models/User.js';
 
 export async function seedAdminIfMissing() {

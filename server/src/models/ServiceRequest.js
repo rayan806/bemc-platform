@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/ServiceRequest.js
+ * Proposito: Modelo de solicitudes de servicio y su estado.
+ */
+
 import mongoose from 'mongoose';
 
 const STATUSES = [

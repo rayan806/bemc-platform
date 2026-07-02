@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/Service.js
+ * Proposito: Modelo de servicios SST disponibles.
+ */
+
 import mongoose from 'mongoose';
 
 const CATEGORIES = [

@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/auth/PasswordInput.jsx
+ * Proposito: Input de password con accion mostrar/ocultar.
+ */
+
 import { useState } from 'react';
 
 export default function PasswordInput({ placeholder, value, onChange, required, minLength, id }) {

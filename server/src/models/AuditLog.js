@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/models/AuditLog.js
+ * Proposito: Modelo de auditoria para trazabilidad.
+ */
+
 import mongoose from 'mongoose';
 
 const auditLogSchema = new mongoose.Schema(

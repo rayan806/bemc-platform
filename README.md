@@ -233,3 +233,44 @@ bemc-platform/
 | `npm run dev:server` | Solo API |
 | `npm run dev:client` | Solo frontend |
 | `npm run build` | Build de producción del cliente |
+
+## Checklist de mantenimiento seguro (si tocas X, revisa Y)
+
+1. Si tocas autenticacion (`client/src/context/AuthContext.jsx`, `server/src/routes/auth.routes.js`, `server/src/middleware/auth.js`), revisa:
+	- Login, logout y persistencia de token.
+	- Rutas protegidas (`/portal/*`, `/admin/*`).
+	- `GET /api/health` y `POST /api/auth/login`.
+
+2. Si tocas rutas frontend (`client/src/App.jsx`), revisa:
+	- Navegacion publica y privada.
+	- Redirecciones al entrar sin sesion.
+	- Pantalla 404 o fallback al home.
+
+3. Si tocas modelos (`server/src/models/*`), revisa:
+	- Compatibilidad de campos usados por formularios frontend.
+	- Consultas en rutas (`server/src/routes/*`).
+	- Seeds (`server/src/seed/*`) en ambiente nuevo.
+
+4. Si tocas solicitudes/pagos (`server/src/routes/requests.routes.js`, `server/src/routes/payments.routes.js`), revisa:
+	- Creacion de solicitud -> pago pendiente.
+	- Actualizacion de estado por staff/admin.
+	- Vista en portal cliente y panel admin.
+
+5. Si tocas estilos globales (`client/src/styles/index.css`, `client/src/styles/auth.css`), revisa:
+	- Login, registro, home, servicios, portal y admin en desktop y movil.
+	- Contraste visual y legibilidad.
+
+6. Si tocas API base (`client/src/api/client.js`), revisa:
+	- Header `Authorization` en requests autenticados.
+	- Manejo de `401` y redireccion a `/login`.
+
+7. Antes de subir a produccion, ejecuta siempre:
+
+```bash
+npm run build --prefix client
+```
+
+8. Despues de desplegar, valida rapido:
+	- Home publica: `/`
+	- API health: `/api/health`
+	- Login y una ruta privada (`/portal` o `/admin`)

@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/main.jsx
+ * Proposito: Entry point del frontend: monta React, Router y AuthProvider.
+ */
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

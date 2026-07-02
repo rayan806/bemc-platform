@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/middleware/errorHandler.js
+ * Proposito: Manejo centralizado de errores HTTP.
+ */
+
 export function errorHandler(err, req, res, next) {
   console.error(err);
 

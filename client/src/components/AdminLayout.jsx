@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/components/AdminLayout.jsx
+ * Proposito: Layout base para el panel administrativo.
+ */
+
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/bemc-logo.png';

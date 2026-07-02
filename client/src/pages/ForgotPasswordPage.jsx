@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/pages/ForgotPasswordPage.jsx
+ * Proposito: Solicitud de recuperacion de contrasena.
+ */
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';

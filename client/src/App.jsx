@@ -1,3 +1,8 @@
+/**
+ * Archivo: client/src/App.jsx
+ * Proposito: Router principal de la app: rutas publicas, auth, portal y admin.
+ */
+
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import PublicLayout from './components/PublicLayout';

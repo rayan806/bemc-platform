@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/utils/jwt.js
+ * Proposito: Utilidades para firmar/verificar JWT.
+ */
+
 import jwt from 'jsonwebtoken';
 
 export function signToken(payload) {

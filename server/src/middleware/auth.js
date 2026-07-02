@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/middleware/auth.js
+ * Proposito: Autenticacion JWT y autorizacion por roles.
+ */
+
 import { verifyToken } from '../utils/jwt.js';
 import { User } from '../models/User.js';
 

@@ -1,3 +1,8 @@
+/**
+ * Archivo: server/src/routes/services.routes.js
+ * Proposito: Rutas para consultar/gestionar servicios.
+ */
+
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { Service } from '../models/Service.js';
