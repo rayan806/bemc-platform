@@ -78,10 +78,6 @@ app.use(notFound);
 app.use(errorHandler);
 
 async function start() {
-  console.log(`NODE_ENV=${process.env.NODE_ENV}`);
-  console.log(`Using client dist path: ${clientDistPath}`);
-  console.log(`Client dist exists: ${fs.existsSync(clientDistPath)}`);
-  
   await connectDB();
   await seedServicesIfEmpty();
   await seedAdminIfMissing();
