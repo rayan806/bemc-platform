@@ -54,27 +54,28 @@ app.get('/api/health', (req, res) => {
 
 const clientDistPath = path.join(__dirname, '../../client/dist');
 if (process.env.NODE_ENV === 'production') {
-  if (!fs.existsSync(clientDistPath)) {
-    console.warn('Advertencia: no se encontró el directorio estático del cliente:', clientDistPath);
-    try {
-      const root = path.join(__dirname, '..', '..');
-      const found = fs.readdirSync(root).slice(0, 50);
-      console.warn('Contenido del repositorio raíz (parcial):', found);
-    } catch (err) {
-      console.warn('No se pudo leer el contenido del repositorio raíz:', err.message);
+  console.log(`Serving static files from: ${clientDistPath}`);
+  console.log(`Client dist exists: ${fs.existsSync(clientDistPath)}`);
+  
+  // Serve all static assets with proper defaults
+  app.use(express.static(clientDistPath, { 
+    maxAge: '1d',
+    index: false  // Disable default index to use our custom logic
+  }));
+  
+  // SPA fallback: serve index.html for all non-API, non-static routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes - let them 404 naturally
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
     }
-  } else {
+    // Serve index.html for all other routes (SPA)
     const indexFile = path.join(clientDistPath, 'index.html');
-    if (!fs.existsSync(indexFile)) {
-      console.warn('Advertencia: index.html no encontrado en client/dist:', indexFile);
+    if (fs.existsSync(indexFile)) {
+      res.sendFile(indexFile);
+    } else {
+      res.status(404).json({ message: 'Frontend not built' });
     }
-  }
-  app.use(express.static(clientDistPath));
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ message: 'Ruta no encontrada' });
-    }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
   });
 }
 
