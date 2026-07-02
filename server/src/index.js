@@ -40,12 +40,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+// Rutas de autenticacion con limite de intentos para proteger login.
 app.use(
   '/api/auth',
   rateLimit({ windowMs: 15 * 60 * 1000, max: 50, message: 'Demasiados intentos' }),
   authRoutes
 );
 
+// Rutas principales de negocio.
 app.use('/api/services', servicesRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/admin', adminRoutes);
@@ -61,6 +63,7 @@ app.get('/api/health', (req, res) => {
 // PRODUCTION STATIC SERVING
 // =========================
 const clientDistPath = path.join(__dirname, '../../client/dist');
+// Sirve los archivos compilados del frontend (React).
 app.use(express.static(clientDistPath));
 
 // SPA Fallback: Serve index.html for any route not starting with /api or /uploads

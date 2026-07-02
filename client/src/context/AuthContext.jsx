@@ -13,6 +13,7 @@ const STAFF_ROLES = ['admin', 'consultor', 'auxiliar', 'supervisor'];
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
+      // Recupera sesion previa guardada en el navegador.
       return JSON.parse(localStorage.getItem('bemc_user'));
     } catch {
       return null;
@@ -26,6 +27,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+    // Valida token consultando al backend quien es el usuario actual.
     api
       .get('/auth/me')
       .then((res) => {
@@ -41,6 +43,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (identifier, password) => {
+    // Inicia sesion con email/telefono + contrasena.
     const { data } = await api.post('/auth/login', { identifier, password });
     localStorage.setItem('bemc_token', data.token);
     localStorage.setItem('bemc_user', JSON.stringify(data.user));
@@ -49,6 +52,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (payload) => {
+    // Crea cuenta nueva y deja la sesion activa.
     const { data } = await api.post('/auth/register', payload);
     localStorage.setItem('bemc_token', data.token);
     localStorage.setItem('bemc_user', JSON.stringify(data.user));
@@ -57,6 +61,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Cierra sesion local en el navegador.
     localStorage.removeItem('bemc_token');
     localStorage.removeItem('bemc_user');
     setUser(null);

@@ -6,11 +6,13 @@
 import axios from 'axios';
 
 const api = axios.create({
+  // Si no se define URL externa, usa el mismo dominio en /api.
   baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
 api.interceptors.request.use((config) => {
+  // Toma el token guardado al iniciar sesion y lo envia en cada peticion.
   const token = localStorage.getItem('bemc_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -21,6 +23,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    // Si la sesion expiro (401), limpia datos locales y envia al login.
     if (err.response?.status === 401) {
       localStorage.removeItem('bemc_token');
       localStorage.removeItem('bemc_user');
