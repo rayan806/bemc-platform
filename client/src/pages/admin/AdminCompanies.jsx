@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 
+// Componente principal de esta vista.
 export default function AdminCompanies() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded', 'overdue'];
 const PAYMENT_METHODS = ['card', 'pse', 'transfer', 'cash', 'other'];
 
+// Define la estructura de datos que se guarda en MongoDB.
 const paymentSchema = new mongoose.Schema(
   {
     serviceRequest: {

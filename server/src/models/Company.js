@@ -5,6 +5,7 @@
 
 import mongoose from 'mongoose';
 
+// Define la estructura de datos que se guarda en MongoDB.
 const companySchema = new mongoose.Schema(
   {
     legalName: { type: String, required: true, trim: true },

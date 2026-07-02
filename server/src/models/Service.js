@@ -15,6 +15,7 @@ const CATEGORIES = [
   'otro',
 ];
 
+// Define la estructura de datos que se guarda en MongoDB.
 const serviceSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },

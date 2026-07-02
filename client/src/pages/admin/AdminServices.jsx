@@ -14,6 +14,7 @@ function formatPrice(price) {
   }).format(price);
 }
 
+// Componente principal de esta vista.
 export default function AdminServices() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);

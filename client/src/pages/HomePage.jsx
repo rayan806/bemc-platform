@@ -39,6 +39,7 @@ const processSteps = [
   'Cotización, ejecución y entrega de soportes',
 ];
 
+// Componente principal de esta vista.
 export default function HomePage() {
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);

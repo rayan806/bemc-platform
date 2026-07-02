@@ -10,6 +10,8 @@ import { authenticate, isAdmin, isStaff } from '../middleware/auth.js';
 
 const router = Router();
 
+// Aqui se definen los endpoints de este modulo.
+
 router.get('/', async (req, res, next) => {
   try {
     const filter = { isActive: true };

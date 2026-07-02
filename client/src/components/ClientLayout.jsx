@@ -6,6 +6,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+// Componente principal de esta vista.
 export default function ClientLayout() {
   const { user, logout } = useAuth();
 

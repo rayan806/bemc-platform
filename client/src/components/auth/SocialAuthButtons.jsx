@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import api from '../../api/client';
 
+// Componente principal de esta vista.
 export default function SocialAuthButtons({ onError }) {
   const [loading, setLoading] = useState(null);
 

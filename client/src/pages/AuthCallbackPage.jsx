@@ -17,6 +17,7 @@ const ERROR_MESSAGES = {
   oauth_failed: 'No se pudo completar el inicio de sesión.',
 };
 
+// Componente principal de esta vista.
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();

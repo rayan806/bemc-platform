@@ -16,6 +16,7 @@ const navItems = [
   { to: '/admin/servicios', label: 'Servicios', icon: 'bi-briefcase' },
 ];
 
+// Componente principal de esta vista.
 export default function AdminLayout() {
   const { user, logout } = useAuth();
 

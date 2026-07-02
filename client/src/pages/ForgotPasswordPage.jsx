@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import AuthGlassCard from '../components/auth/AuthGlassCard';
 
+// Componente principal de esta vista.
 export default function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');

@@ -6,6 +6,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
+// Componente principal de esta vista.
 export default function PortalHome() {
   const { user } = useAuth();
 

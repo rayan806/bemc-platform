@@ -24,6 +24,7 @@ function formatPrice(price) {
   }).format(price);
 }
 
+// Componente principal de esta vista.
 export default function PortalRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 
+// Configuracion base para hablar con la API.
 const api = axios.create({
   // Si no se define URL externa, usa el mismo dominio en /api.
   baseURL: import.meta.env.VITE_API_URL || '/api',

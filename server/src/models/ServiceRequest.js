@@ -14,6 +14,7 @@ const STATUSES = [
   'cancelled',
 ];
 
+// Define la estructura de datos que se guarda en MongoDB.
 const serviceRequestSchema = new mongoose.Schema(
   {
     client: {

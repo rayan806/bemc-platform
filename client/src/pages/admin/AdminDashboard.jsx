@@ -14,6 +14,7 @@ const statusLabels = {
   completed: 'Completado',
 };
 
+// Componente principal de esta vista.
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

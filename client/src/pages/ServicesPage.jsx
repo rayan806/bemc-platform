@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { categoryLabels, getServicePresentation } from '../utils/servicePresentation';
 
+// Componente principal de esta vista.
 export default function ServicesPage() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);

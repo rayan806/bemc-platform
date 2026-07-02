@@ -27,6 +27,7 @@ import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminPayments from './pages/admin/AdminPayments';
 import AdminServices from './pages/admin/AdminServices';
 
+// Componente principal de esta vista.
 export default function App() {
   return (
     <Routes>

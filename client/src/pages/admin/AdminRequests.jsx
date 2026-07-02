@@ -16,6 +16,7 @@ const statusLabels = {
 
 const statuses = ['pending_payment', 'paid', 'in_progress', 'completed', 'cancelled'];
 
+// Componente principal de esta vista.
 export default function AdminRequests() {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('');

@@ -13,6 +13,8 @@ import { authenticate, isStaff } from '../middleware/auth.js';
 
 const router = Router();
 
+// Aqui se definen los endpoints de este modulo.
+
 router.use(authenticate, isStaff);
 
 router.get('/dashboard', async (req, res, next) => {

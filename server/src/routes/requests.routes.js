@@ -13,6 +13,9 @@ import { logAudit } from '../utils/audit.js';
 
 const router = Router();
 
+// Aqui se definen los endpoints de este modulo.
+
+// Desde este punto todas las rutas requieren sesion iniciada.
 router.use(authenticate);
 
 router.get('/', async (req, res, next) => {

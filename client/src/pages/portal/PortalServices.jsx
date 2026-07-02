@@ -5,6 +5,7 @@
 
 import ServicesPage from '../ServicesPage';
 
+// Componente principal de esta vista.
 export default function PortalServices() {
   return <ServicesPage />;
 }

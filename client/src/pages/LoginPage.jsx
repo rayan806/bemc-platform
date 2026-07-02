@@ -10,6 +10,7 @@ import AuthGlassCard from '../components/auth/AuthGlassCard';
 import SocialAuthButtons from '../components/auth/SocialAuthButtons';
 import PasswordInput from '../components/auth/PasswordInput';
 
+// Componente principal de esta vista.
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');

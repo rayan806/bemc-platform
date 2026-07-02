@@ -7,6 +7,7 @@ import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/bemc-logo.png';
 
+// Componente principal de esta vista.
 export default function PublicLayout() {
   const { user, logout, isStaff } = useAuth();
 

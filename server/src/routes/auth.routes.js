@@ -23,6 +23,8 @@ import {
 
 const router = Router();
 
+// Aqui se definen los endpoints de este modulo.
+
 function handleValidation(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

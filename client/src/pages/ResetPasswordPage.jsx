@@ -9,6 +9,7 @@ import api from '../api/client';
 import AuthGlassCard from '../components/auth/AuthGlassCard';
 import PasswordInput from '../components/auth/PasswordInput';
 
+// Componente principal de esta vista.
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';

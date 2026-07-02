@@ -5,6 +5,7 @@
 
 import mongoose from 'mongoose';
 
+// Define la estructura de datos que se guarda en MongoDB.
 const auditLogSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

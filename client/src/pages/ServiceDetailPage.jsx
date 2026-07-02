@@ -9,6 +9,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { categoryLabels, getServicePresentation } from '../utils/servicePresentation';
 
+// Componente principal de esta vista.
 export default function ServiceDetailPage() {
   const { slug } = useParams();
   const { user } = useAuth();

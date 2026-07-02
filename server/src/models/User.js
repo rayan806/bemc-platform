@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 
 const ROLES = ['admin', 'consultor', 'auxiliar', 'supervisor', 'client'];
 
+// Define la estructura de datos que se guarda en MongoDB.
 const userSchema = new mongoose.Schema(
   {
     email: {

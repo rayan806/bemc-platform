@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 
+// Componente principal de esta vista.
 export default function PasswordInput({ placeholder, value, onChange, required, minLength, id }) {
   const [visible, setVisible] = useState(false);
 

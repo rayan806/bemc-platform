@@ -5,6 +5,7 @@
 
 import logo from '../../assets/bemc-logo.png';
 
+// Componente principal de esta vista.
 export default function AuthGlassCard({ title, subtitle, wide, children }) {
   return (
     <div className={`auth-glass ${wide ? 'auth-glass--wide' : ''}`}>
