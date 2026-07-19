@@ -34,11 +34,17 @@ export async function findMatchingProfessionals(request) {
   const requiredService = normalize(request.requiredService || request.requiredProfessionalType);
   const requiredSpecialties = (request.requiredSpecialties || []).map(normalize).filter(Boolean);
   const minYearsExperience = Number(request.minYearsExperience || 0);
+  const requiredAvailability = request.requiredAvailability || (request.requiresImmediateAvailability ? 'immediate' : 'this_week');
+
+  const availabilityFilter =
+    requiredAvailability === 'next_week' || requiredAvailability === 'specific_date'
+      ? { $in: ['available', 'busy'] }
+      : 'available';
 
   const professionals = await User.find({
     role: 'professional_sst',
     isActive: true,
-    'professionalProfile.availabilityStatus': 'available',
+    'professionalProfile.availabilityStatus': availabilityFilter,
   })
     .select('email profile professionalProfile')
     .lean();
@@ -79,7 +85,7 @@ export async function findMatchingProfessionals(request) {
   });
 
   const byAvailability = byExperience.filter((pro) => {
-    if (!request.requiresImmediateAvailability) return true;
+    if (requiredAvailability !== 'immediate' && !request.requiresImmediateAvailability) return true;
     return !!pro.professionalProfile?.immediateAvailability;
   });
 

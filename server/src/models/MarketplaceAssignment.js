@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 
 export const MARKETPLACE_ASSIGNMENT_STATUSES = ['assigned', 'in_execution', 'finished', 'cancelled'];
 export const MARKETPLACE_ASSIGNMENT_DECISIONS = ['pending', 'accepted', 'rejected'];
+export const MARKETPLACE_CONTRACT_STATUSES = ['draft', 'pending_send', 'sent', 'accepted', 'rejected'];
 
 const marketplaceAssignmentSchema = new mongoose.Schema(
   {
@@ -49,6 +50,14 @@ const marketplaceAssignmentSchema = new mongoose.Schema(
     },
     professionalDecisionAt: { type: Date },
     professionalDecisionReason: { type: String, trim: true },
+    serviceOrderCode: { type: String, trim: true },
+    contractStatus: {
+      type: String,
+      enum: MARKETPLACE_CONTRACT_STATUSES,
+      default: 'draft',
+      index: true,
+    },
+    contractDraftUrl: { type: String, trim: true },
     finalCertificateUrl: { type: String, trim: true },
     finalReportUrl: { type: String, trim: true },
     finishedAt: { type: Date },

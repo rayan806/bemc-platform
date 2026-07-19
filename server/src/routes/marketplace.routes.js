@@ -7,7 +7,11 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { authenticate, isStaff } from '../middleware/auth.js';
 import { User } from '../models/User.js';
-import { MarketplaceRequest, MARKETPLACE_REQUEST_STATUSES } from '../models/MarketplaceRequest.js';
+import {
+  MarketplaceRequest,
+  MARKETPLACE_REQUEST_STATUSES,
+  MARKETPLACE_REQUIRED_AVAILABILITY,
+} from '../models/MarketplaceRequest.js';
 import { MarketplaceApplication } from '../models/MarketplaceApplication.js';
 import {
   MarketplaceAssignment,
@@ -478,6 +482,8 @@ router.post(
     body('requiredProfessionalType').trim().notEmpty(),
     body('workersCount').isInt({ min: 1 }),
     body('description').trim().notEmpty(),
+    body('requiredAvailability').optional().isIn(MARKETPLACE_REQUIRED_AVAILABILITY),
+    body('budgetReference').optional().isFloat({ min: 0 }),
   ],
   async (req, res, next) => {
     try {
@@ -511,6 +517,8 @@ router.post(
         requiresWorkingAtHeights: !!req.body.requiresWorkingAtHeights,
         requiresConfinedSpaces: !!req.body.requiresConfinedSpaces,
         requiresImmediateAvailability: !!req.body.requiresImmediateAvailability,
+        requiredAvailability: req.body.requiredAvailability || (req.body.requiresImmediateAvailability ? 'immediate' : 'this_week'),
+        budgetReference: req.body.budgetReference,
         requiredSpecialties: req.body.requiredSpecialties || [],
         description: req.body.description,
         attachments: req.body.attachments || [],
@@ -838,6 +846,8 @@ router.post(
         return res.status(409).json({ message: 'La solicitud ya tiene una asignación activa' });
       }
 
+      const serviceOrderCode = `BEMC-OS-${request._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
       if (!assignment) {
         assignment = await MarketplaceAssignment.create({
           request: request._id,
@@ -850,7 +860,11 @@ router.post(
           professionalDecision: 'pending',
           professionalDecisionAt: null,
           professionalDecisionReason: '',
+          serviceOrderCode,
+          contractStatus: 'pending_send',
         });
+        assignment.contractDraftUrl = `/api/marketplace/assignments/${assignment._id}/contract-draft`;
+        await assignment.save();
       } else {
         assignment.professional = req.body.professionalId;
         assignment.company = request.company;
@@ -861,6 +875,9 @@ router.post(
         assignment.professionalDecision = 'pending';
         assignment.professionalDecisionAt = null;
         assignment.professionalDecisionReason = '';
+        assignment.serviceOrderCode = serviceOrderCode;
+        assignment.contractStatus = 'pending_send';
+        assignment.contractDraftUrl = `/api/marketplace/assignments/${assignment._id}/contract-draft`;
         assignment.finishedAt = undefined;
         assignment.finalCertificateUrl = undefined;
         assignment.finalReportUrl = undefined;
@@ -1336,6 +1353,51 @@ router.get('/assignments/:id/certificate', async (req, res, next) => {
       finishedAt: assignment.finishedAt,
       issuedAt: new Date(),
       message: 'Certificado de cumplimiento de servicio Marketplace SST.',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/assignments/:id/contract-draft', async (req, res, next) => {
+  try {
+    const assignment = await MarketplaceAssignment.findById(req.params.id)
+      .populate('request')
+      .populate('professional', 'email profile professionalProfile')
+      .populate('company');
+
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+
+    const isParticipant =
+      assignment.professional?._id?.toString() === req.user._id.toString() ||
+      assignment.request?.createdBy?.toString() === req.user._id.toString();
+    const isOperator = req.user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role);
+    if (!isParticipant && !isOperator) {
+      return res.status(403).json({ message: 'Sin permisos' });
+    }
+
+    res.json({
+      assignmentId: assignment._id,
+      serviceOrderCode: assignment.serviceOrderCode,
+      contractStatus: assignment.contractStatus,
+      contractDraftUrl: assignment.contractDraftUrl,
+      signatureProvider: {
+        enabled: false,
+        provider: null,
+        status: 'not_integrated',
+      },
+      parties: {
+        company: assignment.company?.legalName,
+        professional: `${assignment.professional?.profile?.firstName || ''} ${assignment.professional?.profile?.lastName || ''}`.trim(),
+      },
+      service: {
+        type: assignment.request?.requiredProfessionalType,
+        city: assignment.request?.city,
+        startDate: assignment.request?.startDate,
+        estimatedEndDate: assignment.request?.estimatedEndDate,
+        agreedValue: assignment.agreedValue,
+      },
+      generatedAt: new Date(),
     });
   } catch (err) {
     next(err);

@@ -15,6 +15,13 @@ export const MARKETPLACE_REQUEST_STATUSES = [
   'cancelled',
 ];
 
+export const MARKETPLACE_REQUIRED_AVAILABILITY = [
+  'immediate',
+  'this_week',
+  'next_week',
+  'specific_date',
+];
+
 const marketplaceRequestSchema = new mongoose.Schema(
   {
     company: {
@@ -44,6 +51,12 @@ const marketplaceRequestSchema = new mongoose.Schema(
     requiresWorkingAtHeights: { type: Boolean, default: false },
     requiresConfinedSpaces: { type: Boolean, default: false },
     requiresImmediateAvailability: { type: Boolean, default: false },
+    requiredAvailability: {
+      type: String,
+      enum: MARKETPLACE_REQUIRED_AVAILABILITY,
+      default: 'immediate',
+    },
+    budgetReference: { type: Number, min: 0 },
     requiredSpecialties: [{ type: String, trim: true }],
     description: { type: String, required: true, trim: true },
     attachments: [{ type: String, trim: true }],

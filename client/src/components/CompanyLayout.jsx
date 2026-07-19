@@ -7,12 +7,15 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationsMenu from './NotificationsMenu';
 
-const navItems = [
-  { to: '/empresa', label: 'Dashboard', icon: 'bi-speedometer2', end: true },
-  { to: '/empresa/crear-solicitud', label: 'Crear solicitud', icon: 'bi-plus-square' },
-  { to: '/empresa/solicitudes', label: 'Mis solicitudes', icon: 'bi-card-list' },
+const mainNavItems = [
+  { to: '/empresa/servicios', label: 'Servicios de consultoria', icon: 'bi-clipboard2-check' },
+  { to: '/empresa/crear-solicitud', label: 'Buscador de profesionales', icon: 'bi-search' },
+];
+
+const secondaryNavItems = [
+  { to: '/empresa', label: 'Resumen', icon: 'bi-speedometer2', end: true },
+  { to: '/empresa/solicitudes', label: 'Solicitudes', icon: 'bi-card-list' },
   { to: '/empresa/postulaciones', label: 'Postulaciones', icon: 'bi-people' },
-  { to: '/empresa/servicios', label: 'Servicios', icon: 'bi-clipboard2-check' },
   { to: '/empresa/historial', label: 'Historial', icon: 'bi-clock-history' },
 ];
 
@@ -28,9 +31,26 @@ export default function CompanyLayout() {
           </Link>
           <div className="small opacity-75">Panel de empresa</div>
         </div>
-        <nav className="nav flex-column gap-1 flex-grow-1">
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `nav-link text-white rounded px-3 py-2 ${isActive ? 'bg-white bg-opacity-25' : ''}`}>
+        <nav className="nav flex-column gap-2 flex-grow-1">
+          {mainNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => `nav-link rounded px-3 py-2 fw-semibold ${isActive ? 'bg-warning text-dark' : 'bg-white bg-opacity-10 text-white'}`}
+            >
+              <i className={`bi ${item.icon} me-2`} />
+              {item.label}
+            </NavLink>
+          ))}
+
+          <div className="small text-white-50 mt-2 mb-1 px-1">Gestion</div>
+          {secondaryNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => `nav-link text-white rounded px-3 py-2 ${isActive ? 'bg-white bg-opacity-25' : ''}`}
+            >
               <i className={`bi ${item.icon} me-2`} />
               {item.label}
             </NavLink>
@@ -43,7 +63,7 @@ export default function CompanyLayout() {
       </aside>
       <div className="flex-grow-1 d-flex flex-column">
         <header className="bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
-          <h1 className="h5 mb-0 text-muted">Empresa Marketplace SST</h1>
+          <h1 className="h5 mb-0 text-muted">Panel Empresa - Contrata rapido tu profesional SST</h1>
           <div className="d-flex align-items-center gap-2">
             <NotificationsMenu />
             <Link to="/" className="btn btn-outline-secondary btn-sm">Ver sitio público</Link>
