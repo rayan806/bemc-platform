@@ -9,6 +9,7 @@ import api from '../api/client';
 const AuthContext = createContext(null);
 
 const STAFF_ROLES = ['admin', 'consultor', 'auxiliar', 'supervisor'];
+const PROFESSIONAL_ROLE = 'professional_sst';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -73,6 +74,7 @@ export function AuthProvider({ children }) {
 
   const isStaff = user && STAFF_ROLES.includes(user.role);
   const isAdmin = user?.role === 'admin';
+  const isProfessional = user?.role === PROFESSIONAL_ROLE;
 
   return (
     <AuthContext.Provider
@@ -85,6 +87,7 @@ export function AuthProvider({ children }) {
         setUserFromOAuth,
         isStaff,
         isAdmin,
+        isProfessional,
       }}
     >
       {children}

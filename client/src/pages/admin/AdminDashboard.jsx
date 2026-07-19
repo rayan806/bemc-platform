@@ -36,12 +36,17 @@ export default function AdminDashboard() {
   const statCards = [
     { label: 'Clientes', value: stats?.totalClients },
     { label: 'Empresas', value: stats?.totalCompanies },
+    { label: 'Profesionales SST', value: stats?.totalProfessionals },
     { label: 'Servicios en curso', value: stats?.activeServices },
     { label: 'Completados', value: stats?.completedServices },
     { label: 'Pagos recibidos', value: stats?.paidPayments },
     { label: 'Pagos pendientes', value: stats?.pendingPayments },
     { label: 'Documentos', value: stats?.totalDocuments },
     { label: 'Solicitudes sin pagar', value: stats?.newRequests },
+    { label: 'Marketplace activas', value: stats?.marketplaceActiveRequests },
+    { label: 'Marketplace finalizadas', value: stats?.marketplaceFinishedRequests },
+    { label: 'Profesionales disponibles', value: stats?.availableProfessionals },
+    { label: 'Ejecucion marketplace', value: stats?.marketplaceServicesInExecution },
   ];
 
   return (

@@ -21,6 +21,11 @@ export default function RegisterPage() {
     confirmPassword: '',
     legalName: '',
     nit: '',
+    mainProfession: '',
+    yearsExperience: 0,
+    licenseNumber: '',
+    city: '',
+    specialties: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,6 +54,10 @@ export default function RegisterPage() {
       setError('Para empresa necesitas razón social y NIT');
       return;
     }
+    if (accountType === 'professional' && !form.mainProfession.trim()) {
+      setError('Para profesional SST indica tu profesion principal');
+      return;
+    }
 
     setLoading(true);
 
@@ -68,6 +77,18 @@ export default function RegisterPage() {
         email: form.email.trim(),
         legalRepresentative: form.firstName.trim(),
       };
+    }
+
+    if (accountType === 'professional') {
+      payload.mainProfession = form.mainProfession.trim();
+      payload.mainRole = form.mainProfession.trim();
+      payload.yearsExperience = Number(form.yearsExperience || 0);
+      payload.licenseNumber = form.licenseNumber.trim();
+      payload.city = form.city.trim();
+      payload.specialties = form.specialties
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
 
     try {
@@ -100,6 +121,14 @@ export default function RegisterPage() {
           onClick={() => setAccountType('company')}
         >
           Empresa
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={`auth-tab ${accountType === 'professional' ? 'active' : ''}`}
+          onClick={() => setAccountType('professional')}
+        >
+          Profesional SST
         </button>
       </div>
 
@@ -172,6 +201,54 @@ export default function RegisterPage() {
                 value={form.nit}
                 onChange={update('nit')}
                 required
+              />
+            </div>
+          </div>
+        )}
+
+        {accountType === 'professional' && (
+          <div className="auth-expand">
+            <div className="auth-field">
+              <input
+                className="auth-input"
+                placeholder="Profesion principal (ej. Profesional SST)"
+                value={form.mainProfession}
+                onChange={update('mainProfession')}
+                required
+              />
+            </div>
+            <div className="auth-field">
+              <input
+                type="number"
+                min="0"
+                className="auth-input"
+                placeholder="Años de experiencia"
+                value={form.yearsExperience}
+                onChange={update('yearsExperience')}
+              />
+            </div>
+            <div className="auth-field">
+              <input
+                className="auth-input"
+                placeholder="Numero de licencia (opcional)"
+                value={form.licenseNumber}
+                onChange={update('licenseNumber')}
+              />
+            </div>
+            <div className="auth-field">
+              <input
+                className="auth-input"
+                placeholder="Ciudad base"
+                value={form.city}
+                onChange={update('city')}
+              />
+            </div>
+            <div className="auth-field">
+              <input
+                className="auth-input"
+                placeholder="Especialidades (separadas por coma)"
+                value={form.specialties}
+                onChange={update('specialties')}
               />
             </div>
           </div>

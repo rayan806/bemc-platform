@@ -20,12 +20,14 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import PortalHome from './pages/portal/PortalHome';
 import PortalServices from './pages/portal/PortalServices';
 import PortalRequests from './pages/portal/PortalRequests';
+import PortalMarketplace from './pages/portal/PortalMarketplace';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRequests from './pages/admin/AdminRequests';
 import AdminClients from './pages/admin/AdminClients';
 import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminPayments from './pages/admin/AdminPayments';
 import AdminServices from './pages/admin/AdminServices';
+import AdminMarketplace from './pages/admin/AdminMarketplace';
 
 // Componente principal de esta vista.
 export default function App() {
@@ -59,6 +61,7 @@ export default function App() {
         <Route index element={<PortalHome />} />
         <Route path="servicios" element={<PortalServices />} />
         <Route path="solicitudes" element={<PortalRequests />} />
+        <Route path="marketplace" element={<PortalMarketplace />} />
       </Route>
 
       {/* Admin routes */}
@@ -76,6 +79,7 @@ export default function App() {
         <Route path="empresas" element={<AdminCompanies />} />
         <Route path="pagos" element={<AdminPayments />} />
         <Route path="servicios" element={<AdminServices />} />
+        <Route path="marketplace" element={<AdminMarketplace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

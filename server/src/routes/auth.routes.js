@@ -104,7 +104,7 @@ router.post(
   [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
-    body('accountType').isIn(['person', 'company']),
+    body('accountType').isIn(['person', 'company', 'professional']),
     body('firstName').trim().notEmpty(),
     body('lastName').optional().trim(),
     body('phone').optional().trim(),
@@ -143,7 +143,7 @@ router.post(
         email,
         password,
         accountType,
-        role: 'client',
+        role: accountType === 'professional' ? 'professional_sst' : 'client',
         authProviders: ['local'],
         profile: {
           firstName,
@@ -152,6 +152,22 @@ router.post(
           documentNumber,
           address,
         },
+        professionalProfile:
+          accountType === 'professional'
+            ? {
+                mainProfession: req.body.mainProfession || 'Profesional SST',
+                mainRole: req.body.mainRole || 'Profesional SST',
+                yearsExperience: Number(req.body.yearsExperience || 0),
+                licenseNumber: req.body.licenseNumber,
+                licenseExpiryDate: req.body.licenseExpiryDate,
+                specialties: req.body.specialties || [],
+                city: req.body.city,
+                department: req.body.department,
+                serviceMunicipalities: req.body.serviceMunicipalities || [],
+                canTravel: !!req.body.canTravel,
+                availabilityStatus: 'available',
+              }
+            : undefined,
       });
 
       if (accountType === 'company') {

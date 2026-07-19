@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 // Componente principal de esta vista.
 export default function PortalHome() {
   const { user } = useAuth();
+  const showMarketplace = user?.role === 'professional_sst' || user?.accountType === 'company';
 
   return (
     <div>
@@ -49,6 +50,18 @@ export default function PortalHome() {
             <p className="small text-muted">Próximamente: subir archivos por solicitud</p>
           </div>
         </div>
+        {showMarketplace && (
+          <div className="col-md-4">
+            <div className="card card-bemc p-4 h-100">
+              <i className="bi bi-diagram-3 fs-2 text-primary mb-2" />
+              <h2 className="h6">Marketplace SST</h2>
+              <p className="small text-muted">Publica vacantes o postúlate como profesional SST</p>
+              <Link to="/portal/marketplace" className="btn btn-outline-primary btn-sm">
+                Ir a marketplace
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

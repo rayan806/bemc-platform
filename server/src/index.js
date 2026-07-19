@@ -18,6 +18,8 @@ import servicesRoutes from './routes/services.routes.js';
 import requestsRoutes from './routes/requests.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import paymentsRoutes from './routes/payments.routes.js';
+import marketplaceRoutes from './routes/marketplace.routes.js';
+import notificationsRoutes from './routes/notifications.routes.js';
 import { seedServicesIfEmpty } from './seed/seedServices.js';
 import { seedAdminIfMissing } from './seed/seedAdmin.js';
 
@@ -52,6 +54,8 @@ app.use('/api/services', servicesRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

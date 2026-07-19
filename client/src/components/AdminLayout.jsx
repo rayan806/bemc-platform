@@ -6,6 +6,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/bemc-logo.png';
+import NotificationsMenu from './NotificationsMenu';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: 'bi-speedometer2', end: true },
@@ -14,6 +15,7 @@ const navItems = [
   { to: '/admin/empresas', label: 'Empresas', icon: 'bi-building' },
   { to: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
   { to: '/admin/servicios', label: 'Servicios', icon: 'bi-briefcase' },
+  { to: '/admin/marketplace', label: 'Marketplace', icon: 'bi-diagram-3' },
 ];
 
 // Componente principal de esta vista.
@@ -59,10 +61,13 @@ export default function AdminLayout() {
       <div className="flex-grow-1 d-flex flex-column">
         <header className="bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
           <h1 className="h5 mb-0 text-muted">Administración</h1>
-          <Link to="/" className="btn btn-outline-secondary btn-sm">
-            <i className="bi bi-box-arrow-up-right me-1" />
-            Ver sitio público
-          </Link>
+          <div className="d-flex align-items-center gap-2">
+            <NotificationsMenu />
+            <Link to="/" className="btn btn-outline-secondary btn-sm">
+              <i className="bi bi-box-arrow-up-right me-1" />
+              Ver sitio público
+            </Link>
+          </div>
         </header>
         <main className="flex-grow-1 p-4">
           <Outlet />

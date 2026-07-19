@@ -5,10 +5,12 @@
 
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationsMenu from './NotificationsMenu';
 
 // Componente principal de esta vista.
 export default function ClientLayout() {
   const { user, logout } = useAuth();
+  const showMarketplace = user?.role === 'professional_sst' || user?.accountType === 'company';
 
   return (
     <div className="min-vh-100" style={{ background: 'var(--bemc-bg)' }}>
@@ -27,9 +29,15 @@ export default function ClientLayout() {
             <NavLink to="/portal/solicitudes" className="nav-link">
               Mis solicitudes
             </NavLink>
+            {showMarketplace && (
+              <NavLink to="/portal/marketplace" className="nav-link">
+                Marketplace SST
+              </NavLink>
+            )}
             <span className="text-muted small d-none d-md-inline">
               {user?.profile?.firstName} {user?.profile?.lastName}
             </span>
+            <NotificationsMenu />
             <button type="button" className="btn btn-outline-secondary btn-sm" onClick={logout}>
               Salir
             </button>

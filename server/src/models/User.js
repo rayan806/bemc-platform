@@ -6,7 +6,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-const ROLES = ['admin', 'consultor', 'auxiliar', 'supervisor', 'client'];
+const ROLES = ['admin', 'consultor', 'auxiliar', 'supervisor', 'client', 'professional_sst'];
 
 // Define la estructura de datos que se guarda en MongoDB.
 const userSchema = new mongoose.Schema(
@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     googleId: { type: String, sparse: true, unique: true },
     accountType: {
       type: String,
-      enum: ['person', 'company'],
+      enum: ['person', 'company', 'professional'],
       default: 'person',
     },
     role: {
@@ -48,6 +48,25 @@ const userSchema = new mongoose.Schema(
       phone: { type: String, trim: true },
       address: { type: String, trim: true },
       avatarUrl: { type: String },
+    },
+    professionalProfile: {
+      mainProfession: { type: String, trim: true },
+      mainRole: { type: String, trim: true },
+      yearsExperience: { type: Number, min: 0, default: 0 },
+      licenseNumber: { type: String, trim: true },
+      licenseExpiryDate: { type: Date },
+      specialties: [{ type: String, trim: true }],
+      city: { type: String, trim: true },
+      department: { type: String, trim: true },
+      serviceMunicipalities: [{ type: String, trim: true }],
+      canTravel: { type: Boolean, default: false },
+      availabilityStatus: {
+        type: String,
+        enum: ['available', 'busy', 'unavailable'],
+        default: 'available',
+      },
+      ratingAvg: { type: Number, default: 0 },
+      completedServicesCount: { type: Number, default: 0 },
     },
     company: {
       type: mongoose.Schema.Types.ObjectId,
