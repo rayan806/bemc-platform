@@ -13,9 +13,14 @@ const navItems = [
   { to: '/admin/solicitudes', label: 'Solicitudes', icon: 'bi-inbox' },
   { to: '/admin/clientes', label: 'Clientes', icon: 'bi-people' },
   { to: '/admin/empresas', label: 'Empresas', icon: 'bi-building' },
+  { to: '/admin/profesionales', label: 'Profesionales', icon: 'bi-person-badge' },
   { to: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
   { to: '/admin/servicios', label: 'Servicios', icon: 'bi-briefcase' },
   { to: '/admin/marketplace', label: 'Marketplace', icon: 'bi-diagram-3' },
+  { to: '/admin/documentos', label: 'Documentos', icon: 'bi-folder2-open' },
+  { to: '/admin/estadisticas', label: 'Estadisticas', icon: 'bi-bar-chart' },
+  { to: '/admin/configuracion', label: 'Configuracion', icon: 'bi-gear' },
+  { to: '/admin/control', label: 'Control', icon: 'bi-sliders' },
 ];
 
 // Componente principal de esta vista.

@@ -31,6 +31,10 @@ export default function LoginPage() {
       if (from) navigate(from);
       else if (['admin', 'consultor', 'auxiliar', 'supervisor'].includes(user.role)) {
         navigate('/admin');
+      } else if (user.role === 'professional_sst') {
+        navigate('/profesional');
+      } else if (user.accountType === 'company') {
+        navigate('/empresa');
       } else {
         navigate('/portal');
       }

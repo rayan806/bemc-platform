@@ -11,8 +11,21 @@ function normalize(text) {
 }
 
 function hasValidSstLicense(profile) {
-  if (!profile?.licenseNumber || !profile?.licenseExpiryDate) return false;
-  return new Date(profile.licenseExpiryDate).getTime() >= Date.now();
+  const singleValid =
+    profile?.licenseNumber &&
+    profile?.licenseExpiryDate &&
+    new Date(profile.licenseExpiryDate).getTime() >= Date.now();
+
+  const listValid = Array.isArray(profile?.licenses)
+    ? profile.licenses.some(
+        (license) =>
+          license?.number &&
+          license?.expiryDate &&
+          new Date(license.expiryDate).getTime() >= Date.now()
+      )
+    : false;
+
+  return !!(singleValid || listValid);
 }
 
 export async function findMatchingProfessionals(request) {

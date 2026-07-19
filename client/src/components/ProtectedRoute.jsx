@@ -6,7 +6,13 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export function ProtectedRoute({ children, staffOnly = false }) {
+export function ProtectedRoute({
+  children,
+  staffOnly = false,
+  allowRoles = null,
+  allowAccountTypes = null,
+  redirectTo = '/portal',
+}) {
   const { user, loading, isStaff } = useAuth();
 
   // Mientras valida sesion, muestra un cargando.
@@ -24,6 +30,18 @@ export function ProtectedRoute({ children, staffOnly = false }) {
   // Si la ruta es solo para staff, bloquea a clientes normales.
   if (staffOnly && !isStaff) {
     return <Navigate to="/portal" replace />;
+  }
+
+  if (Array.isArray(allowRoles) && allowRoles.length > 0 && !allowRoles.includes(user.role)) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  if (
+    Array.isArray(allowAccountTypes) &&
+    allowAccountTypes.length > 0 &&
+    !allowAccountTypes.includes(user.accountType)
+  ) {
+    return <Navigate to={redirectTo} replace />;
   }
 
   return children;

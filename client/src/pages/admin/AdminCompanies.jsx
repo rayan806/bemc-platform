@@ -11,12 +11,21 @@ export default function AdminCompanies() {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () => {
     api
       .get('/admin/companies')
       .then((res) => setCompanies(res.data))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, []);
+
+  const toggleStatus = async (company) => {
+    await api.patch(`/admin/companies/${company._id}/status`, { isActive: !company.isActive });
+    load();
+  };
 
   return (
     <div>
@@ -33,6 +42,8 @@ export default function AdminCompanies() {
                 <th>Representante</th>
                 <th>Correo</th>
                 <th>Teléfono</th>
+                <th>Estado</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -43,6 +54,12 @@ export default function AdminCompanies() {
                   <td>{c.legalRepresentative}</td>
                   <td>{c.email}</td>
                   <td>{c.phone}</td>
+                  <td>{c.isActive ? 'Activa' : 'Suspendida'}</td>
+                  <td>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => toggleStatus(c)}>
+                      {c.isActive ? 'Suspender' : 'Aprobar'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

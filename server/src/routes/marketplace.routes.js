@@ -145,8 +145,11 @@ router.patch(
         'mainProfession',
         'mainRole',
         'yearsExperience',
+        'experienceSummary',
         'licenseNumber',
         'licenseExpiryDate',
+        'licenses',
+        'studies',
         'specialties',
         'city',
         'department',
@@ -160,6 +163,9 @@ router.patch(
         if (req.body.professionalProfile?.[key] !== undefined) {
           patch[`professionalProfile.${key}`] = req.body.professionalProfile[key];
         }
+      }
+      if (req.body.profile?.avatarUrl !== undefined) {
+        patch['profile.avatarUrl'] = req.body.profile.avatarUrl;
       }
 
       const user = await User.findByIdAndUpdate(req.user._id, { $set: patch }, { new: true }).populate(
@@ -529,7 +535,34 @@ router.get('/requests/:id/applications', async (req, res, next) => {
       .populate('professional', 'email profile professionalProfile')
       .sort({ createdAt: -1 });
 
-    res.json(applications);
+    if (!isOwner && !isOperator) {
+      return res.json(applications);
+    }
+
+    const professionalIds = applications.map((a) => a.professional?._id).filter(Boolean);
+    const certifications = await ProfessionalCertification.find({
+      professional: { $in: professionalIds },
+    })
+      .select('professional title type isVerified expiresAt')
+      .lean();
+
+    const certMap = certifications.reduce((acc, cert) => {
+      const key = cert.professional.toString();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(cert);
+      return acc;
+    }, {});
+
+    const enriched = applications.map((a) => {
+      const row = a.toObject();
+      const professionalId = row.professional?._id?.toString();
+      row.professionalCertifications = professionalId ? certMap[professionalId] || [] : [];
+      row.professionalRatingAvg = row.professional?.professionalProfile?.ratingAvg || 0;
+      row.professionalCompletedServices = row.professional?.professionalProfile?.completedServicesCount || 0;
+      return row;
+    });
+
+    res.json(enriched);
   } catch (err) {
     next(err);
   }
@@ -641,6 +674,30 @@ router.get('/assignments', async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     res.json(assignments);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/history', async (req, res, next) => {
+  try {
+    const filter = { status: 'finished' };
+    if (isProfessional(req.user)) {
+      filter.professional = req.user._id;
+    } else if (req.user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role)) {
+      // staff/admin can see all finished assignments
+    } else {
+      const ownRequests = await MarketplaceRequest.find({ createdBy: req.user._id }).select('_id');
+      filter.request = { $in: ownRequests.map((r) => r._id) };
+    }
+
+    const history = await MarketplaceAssignment.find(filter)
+      .populate('request')
+      .populate('professional', 'email profile professionalProfile')
+      .populate('company')
+      .sort({ finishedAt: -1, createdAt: -1 });
+
+    res.json(history);
   } catch (err) {
     next(err);
   }
@@ -836,6 +893,78 @@ router.get('/assignments/:id/ratings', async (req, res, next) => {
       .populate('toUser', 'profile email');
 
     res.json(ratings);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/assignments/:id/final-report', async (req, res, next) => {
+  try {
+    const assignment = await MarketplaceAssignment.findById(req.params.id)
+      .populate('request')
+      .populate('professional', 'email profile professionalProfile')
+      .populate('company');
+
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+
+    const isParticipant =
+      assignment.professional?._id?.toString() === req.user._id.toString() ||
+      assignment.request?.createdBy?.toString() === req.user._id.toString();
+    const isOperator = req.user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role);
+    if (!isParticipant && !isOperator) {
+      return res.status(403).json({ message: 'Sin permisos' });
+    }
+
+    const reports = await MarketplaceReport.find({ assignment: assignment._id }).sort({ reportDate: 1 });
+    const totalHours = reports.reduce((acc, r) => acc + Number(r.workedHours || 0), 0);
+
+    res.json({
+      assignmentId: assignment._id,
+      status: assignment.status,
+      company: assignment.company,
+      professional: assignment.professional,
+      serviceType: assignment.request?.requiredProfessionalType,
+      city: assignment.request?.city,
+      startDate: assignment.request?.startDate,
+      endDate: assignment.finishedAt || assignment.request?.estimatedEndDate,
+      totalReports: reports.length,
+      totalWorkedHours: totalHours,
+      reports,
+      generatedAt: new Date(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/assignments/:id/certificate', async (req, res, next) => {
+  try {
+    const assignment = await MarketplaceAssignment.findById(req.params.id)
+      .populate('request')
+      .populate('professional', 'email profile professionalProfile')
+      .populate('company');
+
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+
+    const isParticipant =
+      assignment.professional?._id?.toString() === req.user._id.toString() ||
+      assignment.request?.createdBy?.toString() === req.user._id.toString();
+    const isOperator = req.user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role);
+    if (!isParticipant && !isOperator) {
+      return res.status(403).json({ message: 'Sin permisos' });
+    }
+
+    res.json({
+      certificateCode: `BEMC-MKT-${assignment._id.toString().slice(-8).toUpperCase()}`,
+      assignmentId: assignment._id,
+      companyName: assignment.company?.legalName,
+      professionalName: `${assignment.professional?.profile?.firstName || ''} ${assignment.professional?.profile?.lastName || ''}`.trim(),
+      serviceType: assignment.request?.requiredProfessionalType,
+      city: assignment.request?.city,
+      finishedAt: assignment.finishedAt,
+      issuedAt: new Date(),
+      message: 'Certificado de cumplimiento de servicio Marketplace SST.',
+    });
   } catch (err) {
     next(err);
   }

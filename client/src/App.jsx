@@ -9,9 +9,13 @@ import PublicLayout from './components/PublicLayout';
 import AuthLayout from './components/auth/AuthLayout';
 import AdminLayout from './components/AdminLayout';
 import ClientLayout from './components/ClientLayout';
+import CompanyLayout from './components/CompanyLayout';
+import ProfessionalLayout from './components/ProfessionalLayout';
 import HomePage from './pages/HomePage';
 import ServicesPage from './pages/ServicesPage';
 import ServiceDetailPage from './pages/ServiceDetailPage';
+import PublicCompanyQuotePage from './pages/PublicCompanyQuotePage';
+import PublicProfessionalPage from './pages/PublicProfessionalPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -28,6 +32,23 @@ import AdminCompanies from './pages/admin/AdminCompanies';
 import AdminPayments from './pages/admin/AdminPayments';
 import AdminServices from './pages/admin/AdminServices';
 import AdminMarketplace from './pages/admin/AdminMarketplace';
+import AdminProfessionals from './pages/admin/AdminProfessionals';
+import AdminControlCenter from './pages/admin/AdminControlCenter';
+import AdminDocuments from './pages/admin/AdminDocuments';
+import AdminStats from './pages/admin/AdminStats';
+import AdminSettings from './pages/admin/AdminSettings';
+import CompanyDashboard from './pages/company/CompanyDashboard';
+import CompanyCreateRequest from './pages/company/CompanyCreateRequest';
+import CompanyRequests from './pages/company/CompanyRequests';
+import CompanyApplications from './pages/company/CompanyApplications';
+import CompanyServices from './pages/company/CompanyServices';
+import CompanyHistory from './pages/company/CompanyHistory';
+import ProfessionalDashboard from './pages/professional/ProfessionalDashboard';
+import ProfessionalProfile from './pages/professional/ProfessionalProfile';
+import ProfessionalOpportunities from './pages/professional/ProfessionalOpportunities';
+import ProfessionalApplications from './pages/professional/ProfessionalApplications';
+import ProfessionalServices from './pages/professional/ProfessionalServices';
+import ProfessionalHistory from './pages/professional/ProfessionalHistory';
 
 // Componente principal de esta vista.
 export default function App() {
@@ -47,6 +68,8 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="servicios" element={<ServicesPage />} />
         <Route path="servicios/:slug" element={<ServiceDetailPage />} />
+        <Route path="cotizacion-empresas" element={<PublicCompanyQuotePage />} />
+        <Route path="profesionales-sst" element={<PublicProfessionalPage />} />
       </Route>
 
       {/* Client portal routes */}
@@ -66,6 +89,38 @@ export default function App() {
 
       {/* Admin routes */}
       <Route
+        path="empresa"
+        element={
+          <ProtectedRoute allowAccountTypes={['company']} redirectTo="/portal">
+            <CompanyLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<CompanyDashboard />} />
+        <Route path="crear-solicitud" element={<CompanyCreateRequest />} />
+        <Route path="solicitudes" element={<CompanyRequests />} />
+        <Route path="postulaciones" element={<CompanyApplications />} />
+        <Route path="servicios" element={<CompanyServices />} />
+        <Route path="historial" element={<CompanyHistory />} />
+      </Route>
+
+      <Route
+        path="profesional"
+        element={
+          <ProtectedRoute allowRoles={['professional_sst']} redirectTo="/portal">
+            <ProfessionalLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<ProfessionalDashboard />} />
+        <Route path="perfil" element={<ProfessionalProfile />} />
+        <Route path="solicitudes" element={<ProfessionalOpportunities />} />
+        <Route path="postulaciones" element={<ProfessionalApplications />} />
+        <Route path="servicios" element={<ProfessionalServices />} />
+        <Route path="historial" element={<ProfessionalHistory />} />
+      </Route>
+
+      <Route
         path="admin"
         element={
           <ProtectedRoute staffOnly>
@@ -77,9 +132,14 @@ export default function App() {
         <Route path="solicitudes" element={<AdminRequests />} />
         <Route path="clientes" element={<AdminClients />} />
         <Route path="empresas" element={<AdminCompanies />} />
+        <Route path="profesionales" element={<AdminProfessionals />} />
         <Route path="pagos" element={<AdminPayments />} />
         <Route path="servicios" element={<AdminServices />} />
         <Route path="marketplace" element={<AdminMarketplace />} />
+        <Route path="documentos" element={<AdminDocuments />} />
+        <Route path="estadisticas" element={<AdminStats />} />
+        <Route path="configuracion" element={<AdminSettings />} />
+        <Route path="control" element={<AdminControlCenter />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

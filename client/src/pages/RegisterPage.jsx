@@ -24,8 +24,14 @@ export default function RegisterPage() {
     mainProfession: '',
     yearsExperience: 0,
     licenseNumber: '',
+    licenseExpiryDate: '',
+    avatarUrl: '',
+    experienceSummary: '',
     city: '',
     specialties: '',
+    serviceCities: '',
+    studiesText: '',
+    licensesText: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -83,12 +89,37 @@ export default function RegisterPage() {
       payload.mainProfession = form.mainProfession.trim();
       payload.mainRole = form.mainProfession.trim();
       payload.yearsExperience = Number(form.yearsExperience || 0);
+      payload.experienceSummary = form.experienceSummary.trim();
       payload.licenseNumber = form.licenseNumber.trim();
+      payload.licenseExpiryDate = form.licenseExpiryDate || undefined;
+      payload.avatarUrl = form.avatarUrl.trim();
       payload.city = form.city.trim();
       payload.specialties = form.specialties
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
+      payload.serviceMunicipalities = form.serviceCities
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      payload.studies = form.studiesText
+        .split('\n')
+        .map((row) => row.trim())
+        .filter(Boolean)
+        .map((row) => {
+          const [title = '', institution = '', year = ''] = row.split('|').map((v) => v.trim());
+          return { title, institution, year: year ? Number(year) : undefined };
+        })
+        .filter((s) => s.title);
+      payload.licenses = form.licensesText
+        .split('\n')
+        .map((row) => row.trim())
+        .filter(Boolean)
+        .map((row) => {
+          const [name = '', number = '', expiryDate = ''] = row.split('|').map((v) => v.trim());
+          return { name, number, expiryDate: expiryDate || undefined };
+        })
+        .filter((l) => l.name || l.number);
     }
 
     try {
@@ -237,6 +268,23 @@ export default function RegisterPage() {
             </div>
             <div className="auth-field">
               <input
+                type="date"
+                className="auth-input"
+                placeholder="Vencimiento licencia"
+                value={form.licenseExpiryDate}
+                onChange={update('licenseExpiryDate')}
+              />
+            </div>
+            <div className="auth-field">
+              <input
+                className="auth-input"
+                placeholder="URL de foto de perfil"
+                value={form.avatarUrl}
+                onChange={update('avatarUrl')}
+              />
+            </div>
+            <div className="auth-field">
+              <input
                 className="auth-input"
                 placeholder="Ciudad base"
                 value={form.city}
@@ -246,9 +294,41 @@ export default function RegisterPage() {
             <div className="auth-field">
               <input
                 className="auth-input"
+                placeholder="Ciudades donde presta servicio (coma)"
+                value={form.serviceCities}
+                onChange={update('serviceCities')}
+              />
+            </div>
+            <div className="auth-field">
+              <input
+                className="auth-input"
                 placeholder="Especialidades (separadas por coma)"
                 value={form.specialties}
                 onChange={update('specialties')}
+              />
+            </div>
+            <div className="auth-field">
+              <textarea
+                className="auth-input"
+                placeholder="Resumen de experiencia"
+                value={form.experienceSummary}
+                onChange={update('experienceSummary')}
+              />
+            </div>
+            <div className="auth-field">
+              <textarea
+                className="auth-input"
+                placeholder="Estudios (linea: titulo|institucion|anio)"
+                value={form.studiesText}
+                onChange={update('studiesText')}
+              />
+            </div>
+            <div className="auth-field">
+              <textarea
+                className="auth-input"
+                placeholder="Licencias adicionales (linea: nombre|numero|fecha_yyyy-mm-dd)"
+                value={form.licensesText}
+                onChange={update('licensesText')}
               />
             </div>
           </div>

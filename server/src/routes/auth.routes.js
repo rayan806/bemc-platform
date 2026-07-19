@@ -151,6 +151,7 @@ router.post(
           phone,
           documentNumber,
           address,
+          avatarUrl: req.body.avatarUrl,
         },
         professionalProfile:
           accountType === 'professional'
@@ -158,8 +159,11 @@ router.post(
                 mainProfession: req.body.mainProfession || 'Profesional SST',
                 mainRole: req.body.mainRole || 'Profesional SST',
                 yearsExperience: Number(req.body.yearsExperience || 0),
+                experienceSummary: req.body.experienceSummary,
                 licenseNumber: req.body.licenseNumber,
                 licenseExpiryDate: req.body.licenseExpiryDate,
+                licenses: req.body.licenses || [],
+                studies: req.body.studies || [],
                 specialties: req.body.specialties || [],
                 city: req.body.city,
                 department: req.body.department,

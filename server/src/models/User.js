@@ -53,8 +53,23 @@ const userSchema = new mongoose.Schema(
       mainProfession: { type: String, trim: true },
       mainRole: { type: String, trim: true },
       yearsExperience: { type: Number, min: 0, default: 0 },
+      experienceSummary: { type: String, trim: true },
       licenseNumber: { type: String, trim: true },
       licenseExpiryDate: { type: Date },
+      licenses: [
+        {
+          name: { type: String, trim: true },
+          number: { type: String, trim: true },
+          expiryDate: { type: Date },
+        },
+      ],
+      studies: [
+        {
+          title: { type: String, trim: true },
+          institution: { type: String, trim: true },
+          year: { type: Number, min: 1900 },
+        },
+      ],
       specialties: [{ type: String, trim: true }],
       city: { type: String, trim: true },
       department: { type: String, trim: true },

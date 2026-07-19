@@ -9,7 +9,8 @@ import logo from '../assets/bemc-logo.png';
 
 // Componente principal de esta vista.
 export default function PublicLayout() {
-  const { user, logout, isStaff } = useAuth();
+  const { user, logout, isStaff, isProfessional } = useAuth();
+  const accountPath = isStaff ? '/admin' : isProfessional ? '/profesional' : user?.accountType === 'company' ? '/empresa' : '/portal';
 
   return (
     <>
@@ -34,12 +35,22 @@ export default function PublicLayout() {
                   Servicios SST
                 </Link>
               </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/cotizacion-empresas">
+                  Cotizar empresa
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/profesionales-sst">
+                  Soy profesional SST
+                </Link>
+              </li>
             </ul>
             <ul className="navbar-nav">
               {user ? (
                 <>
                   <li className="nav-item">
-                    <Link className="nav-link" to={isStaff ? '/admin' : '/portal'}>
+                    <Link className="nav-link" to={accountPath}>
                       Mi cuenta
                     </Link>
                   </li>
