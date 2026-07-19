@@ -4,6 +4,27 @@ import api from '../../api/client';
 const areasOptions = ['Construcción', 'Industria', 'Minería', 'Petróleo', 'Energía', 'Manufactura', 'Transporte', 'Salud', 'Educación', 'Agroindustria', 'Otras'];
 const servicesOptions = ['SISO por días', 'SISO tiempo completo', 'Inspector SST', 'Coordinador de Trabajo en Alturas', 'Auditor SG-SST', 'Capacitaciones', 'Investigación de accidentes', 'Elaboración de documentos SG-SST', 'Inspecciones', 'Consultoría', 'Otros'];
 
+const textFixes = {
+  'Construcci�n': 'Construcción',
+  'Miner�a': 'Minería',
+  'Petr�leo': 'Petróleo',
+  'Educaci�n': 'Educación',
+  'SISO por d�as': 'SISO por días',
+  'Consultor�a': 'Consultoría',
+  'Investigaci�n de accidentes': 'Investigación de accidentes',
+  'Especializaci�n': 'Especialización',
+};
+
+function normalizeCorruptedText(value) {
+  if (!value) return '';
+  const text = String(value).trim();
+  return textFixes[text] || text;
+}
+
+function normalizeArray(values) {
+  return (values || []).map((v) => normalizeCorruptedText(v)).filter(Boolean);
+}
+
 function csvToArray(value) {
   return (value || '').split(',').map((v) => v.trim()).filter(Boolean);
 }
@@ -43,15 +64,18 @@ export default function ProfessionalProfile() {
       licenseIssuedAt: p.licenseIssuedAt ? String(p.licenseIssuedAt).slice(0, 10) : '',
       licenseExpiryDate: p.licenseExpiryDate ? String(p.licenseExpiryDate).slice(0, 10) : '',
       licenseStatus: p.licenseStatus || 'pending',
-      areasExperience: p.areasExperience || [],
-      servicesOffered: p.servicesOffered || [],
+      areasExperience: normalizeArray(p.areasExperience),
+      servicesOffered: normalizeArray(p.servicesOffered),
       serviceMunicipalitiesText: arrayToCsv(p.serviceMunicipalities),
       serviceDepartmentsText: arrayToCsv(p.serviceDepartments),
       canTravel: !!p.canTravel,
       immediateAvailability: !!p.immediateAvailability,
       availabilityStatus: p.availabilityStatus || 'available',
       workExperiences: p.workExperiences || [],
-      educationItems: p.educationItems || [],
+      educationItems: (p.educationItems || []).map((ed) => ({
+        ...ed,
+        level: normalizeCorruptedText(ed?.level),
+      })),
     });
     setCompletion(data?.completion || { percentage: 0, recommendations: [] });
   };
@@ -87,8 +111,8 @@ export default function ProfessionalProfile() {
         licenseIssuedAt: form.licenseIssuedAt || undefined,
         licenseExpiryDate: form.licenseExpiryDate || undefined,
         licenseStatus: form.licenseStatus,
-        areasExperience: form.areasExperience,
-        servicesOffered: form.servicesOffered,
+        areasExperience: normalizeArray(form.areasExperience),
+        servicesOffered: normalizeArray(form.servicesOffered),
         city: form.city,
         department: form.department,
         serviceMunicipalities: csvToArray(form.serviceMunicipalitiesText),
