@@ -31,7 +31,9 @@ function hasValidSstLicense(profile) {
 export async function findMatchingProfessionals(request) {
   const city = normalize(request.city);
   const requiredType = normalize(request.requiredProfessionalType);
+  const requiredService = normalize(request.requiredService || request.requiredProfessionalType);
   const requiredSpecialties = (request.requiredSpecialties || []).map(normalize).filter(Boolean);
+  const minYearsExperience = Number(request.minYearsExperience || 0);
 
   const professionals = await User.find({
     role: 'professional_sst',
@@ -52,8 +54,13 @@ export async function findMatchingProfessionals(request) {
     const p = pro.professionalProfile || {};
     const profession = normalize(p.mainProfession);
     const mainRole = normalize(p.mainRole);
+    const services = (p.servicesOffered || []).map(normalize);
     if (!requiredType) return true;
-    return profession.includes(requiredType) || mainRole.includes(requiredType);
+    return (
+      profession.includes(requiredType) ||
+      mainRole.includes(requiredType) ||
+      services.some((s) => s.includes(requiredService) || requiredService.includes(s))
+    );
   });
 
   const byLicense = byType.filter((pro) => hasValidSstLicense(pro.professionalProfile));
@@ -65,7 +72,18 @@ export async function findMatchingProfessionals(request) {
     return requiredSpecialties.every((s) => specialties.includes(s));
   });
 
-  const ids = bySpecialty.map((p) => p._id);
+  const byExperience = bySpecialty.filter((pro) => {
+    if (!minYearsExperience) return true;
+    const years = Number(pro.professionalProfile?.yearsExperience || 0);
+    return years >= minYearsExperience;
+  });
+
+  const byAvailability = byExperience.filter((pro) => {
+    if (!request.requiresImmediateAvailability) return true;
+    return !!pro.professionalProfile?.immediateAvailability;
+  });
+
+  const ids = byAvailability.map((p) => p._id);
   const certifications = await ProfessionalCertification.find({ professional: { $in: ids } })
     .select('professional type expiresAt')
     .lean();
@@ -77,7 +95,7 @@ export async function findMatchingProfessionals(request) {
     return acc;
   }, {});
 
-  return bySpecialty
+  return byAvailability
     .map((pro) => {
       const p = pro.professionalProfile || {};
       const certs = certMap[pro._id.toString()] || [];

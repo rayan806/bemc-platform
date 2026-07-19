@@ -10,9 +10,14 @@ import NotificationsMenu from './NotificationsMenu';
 const navItems = [
   { to: '/profesional', label: 'Dashboard', icon: 'bi-speedometer2', end: true },
   { to: '/profesional/perfil', label: 'Mi perfil', icon: 'bi-person-badge' },
+  { to: '/profesional/documentos', label: 'Mis documentos', icon: 'bi-folder2-open' },
+  { to: '/profesional/certificaciones', label: 'Mis certificaciones', icon: 'bi-patch-check' },
   { to: '/profesional/solicitudes', label: 'Solicitudes disponibles', icon: 'bi-briefcase' },
   { to: '/profesional/postulaciones', label: 'Mis postulaciones', icon: 'bi-send-check' },
   { to: '/profesional/servicios', label: 'Mis servicios', icon: 'bi-clipboard2-pulse' },
+  { to: '/profesional/calendario', label: 'Calendario', icon: 'bi-calendar-event' },
+  { to: '/profesional/notificaciones', label: 'Notificaciones', icon: 'bi-bell' },
+  { to: '/profesional/configuracion', label: 'Configuracion', icon: 'bi-gear' },
   { to: '/profesional/historial', label: 'Historial', icon: 'bi-clock-history' },
 ];
 

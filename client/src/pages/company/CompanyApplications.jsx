@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api/client';
 
 function formatMoney(v) {
@@ -36,7 +37,7 @@ export default function CompanyApplications() {
           </div>
           <div className="table-responsive">
             <table className="table table-sm align-middle mb-0">
-              <thead><tr><th>Foto</th><th>Nombre</th><th>Profesion</th><th>Experiencia</th><th>Licencia SST</th><th>Certificaciones</th><th>Estudios</th><th>Calificacion</th><th>Servicios</th><th>Valor</th><th>Disponibilidad</th><th /></tr></thead>
+              <thead><tr><th>Foto</th><th>Nombre</th><th>Profesion</th><th>Experiencia</th><th>Licencia SST</th><th>Certificaciones</th><th>Estudios</th><th>Calificacion</th><th>Servicios</th><th>Valor</th><th>Disponibilidad</th><th>Perfil</th><th /></tr></thead>
               <tbody>
                 {(appsByReq[r._id] || []).map((a) => (
                   <tr key={a._id}>
@@ -51,6 +52,7 @@ export default function CompanyApplications() {
                     <td>{a.professionalCompletedServices || 0}</td>
                     <td>{formatMoney(a.economicProposal)}</td>
                     <td>{a.availabilityNote || '—'}</td>
+                    <td>{a.professional?._id ? <Link className="btn btn-sm btn-outline-secondary" to={`/profesionales-sst/${a.professional._id}`} target="_blank" rel="noreferrer">Ver perfil completo</Link> : '—'}</td>
                     <td><button className="btn btn-sm btn-bemc" disabled={a.status !== 'active'} onClick={() => selectPro(r._id, a.professional?._id)}>Seleccionar</button></td>
                   </tr>
                 ))}

@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../api/client';
 
 const faqs = [
   { q: 'Que necesito para registrarme?', a: 'Datos basicos, perfil profesional SST y soportes de certificaciones.' },
@@ -7,6 +9,12 @@ const faqs = [
 ];
 
 export default function PublicProfessionalPage() {
+  const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    api.get('/public/professionals').then((r) => setRows(r.data || []));
+  }, []);
+
   return (
     <section className="container py-5">
       <h1 className="h2 mb-3">Marketplace para Profesionales SST</h1>
@@ -20,6 +28,29 @@ export default function PublicProfessionalPage() {
 
       <div className="mb-4">
         <Link to="/registro" className="btn btn-bemc">Registrarme como profesional SST</Link>
+      </div>
+
+      <div className="card card-bemc p-3 mb-4">
+        <h2 className="h5">Profesionales destacados</h2>
+        {rows.length === 0 ? <p className="text-muted mb-0">No hay profesionales públicos para mostrar.</p> : (
+          <div className="row g-3 mt-1">
+            {rows.slice(0, 12).map((p) => (
+              <div className="col-md-6" key={p._id}>
+                <div className="border rounded p-3 h-100">
+                  <div className="d-flex gap-2 align-items-center mb-2">
+                    {p.profile?.avatarUrl ? <img src={p.profile.avatarUrl} alt="perfil" width="44" height="44" style={{ objectFit: 'cover', borderRadius: 8 }} /> : <div className="bg-light border rounded" style={{ width: 44, height: 44 }} />}
+                    <div>
+                      <strong>{p.profile?.firstName || ''} {p.profile?.lastName || ''}</strong>
+                      <div className="small text-muted">{p.professionalProfile?.mainProfession || 'Profesional SST'}</div>
+                    </div>
+                  </div>
+                  <div className="small text-muted mb-2">{p.professionalProfile?.city || 'Ciudad no definida'} · Rating {p.professionalProfile?.ratingAvg || 0}</div>
+                  <Link className="btn btn-sm btn-outline-primary" to={`/profesionales-sst/${p._id}`}>Ver perfil completo</Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card card-bemc p-3">

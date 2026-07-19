@@ -34,6 +34,21 @@ export default function ProfessionalDashboard() {
       <div className="card card-bemc p-3">
         <h3 className="h6">Disponibilidad actual</h3>
         <div className="text-muted">{summary.profile?.availabilityStatus || 'available'}</div>
+        <hr />
+        <h3 className="h6">Perfil profesional</h3>
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <span className="small text-muted">Completado: {summary.completion?.percentage || 0}%</span>
+          <div className="progress" style={{ width: 200, height: 10 }}>
+            <div className="progress-bar" style={{ width: `${summary.completion?.percentage || 0}%` }} />
+          </div>
+        </div>
+        {summary.completion?.recommendations?.length > 0 && (
+          <ul className="small mb-0">
+            {summary.completion.recommendations.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

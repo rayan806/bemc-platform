@@ -16,6 +16,7 @@ import ServicesPage from './pages/ServicesPage';
 import ServiceDetailPage from './pages/ServiceDetailPage';
 import PublicCompanyQuotePage from './pages/PublicCompanyQuotePage';
 import PublicProfessionalPage from './pages/PublicProfessionalPage';
+import PublicProfessionalProfilePage from './pages/PublicProfessionalProfilePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -49,6 +50,11 @@ import ProfessionalOpportunities from './pages/professional/ProfessionalOpportun
 import ProfessionalApplications from './pages/professional/ProfessionalApplications';
 import ProfessionalServices from './pages/professional/ProfessionalServices';
 import ProfessionalHistory from './pages/professional/ProfessionalHistory';
+import ProfessionalDocuments from './pages/professional/ProfessionalDocuments';
+import ProfessionalCertifications from './pages/professional/ProfessionalCertifications';
+import ProfessionalCalendar from './pages/professional/ProfessionalCalendar';
+import ProfessionalNotifications from './pages/professional/ProfessionalNotifications';
+import ProfessionalSettings from './pages/professional/ProfessionalSettings';
 
 // Componente principal de esta vista.
 export default function App() {
@@ -70,6 +76,7 @@ export default function App() {
         <Route path="servicios/:slug" element={<ServiceDetailPage />} />
         <Route path="cotizacion-empresas" element={<PublicCompanyQuotePage />} />
         <Route path="profesionales-sst" element={<PublicProfessionalPage />} />
+        <Route path="profesionales-sst/:id" element={<PublicProfessionalProfilePage />} />
       </Route>
 
       {/* Client portal routes */}
@@ -114,9 +121,14 @@ export default function App() {
       >
         <Route index element={<ProfessionalDashboard />} />
         <Route path="perfil" element={<ProfessionalProfile />} />
+        <Route path="documentos" element={<ProfessionalDocuments />} />
+        <Route path="certificaciones" element={<ProfessionalCertifications />} />
         <Route path="solicitudes" element={<ProfessionalOpportunities />} />
         <Route path="postulaciones" element={<ProfessionalApplications />} />
         <Route path="servicios" element={<ProfessionalServices />} />
+        <Route path="calendario" element={<ProfessionalCalendar />} />
+        <Route path="notificaciones" element={<ProfessionalNotifications />} />
+        <Route path="configuracion" element={<ProfessionalSettings />} />
         <Route path="historial" element={<ProfessionalHistory />} />
       </Route>
 

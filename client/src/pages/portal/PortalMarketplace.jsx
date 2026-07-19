@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
@@ -131,11 +132,14 @@ export default function PortalMarketplace() {
     startDate: '',
     estimatedEndDate: '',
     requiredProfessionalType: '',
+    requiredService: '',
+    minYearsExperience: 0,
     workersCount: 1,
     riskLevel: 'medio',
     description: '',
     requiresWorkingAtHeights: false,
     requiresConfinedSpaces: false,
+    requiresImmediateAvailability: false,
     requiredSpecialtiesText: '',
     attachmentsText: '',
     publishNow: true,
@@ -233,11 +237,14 @@ export default function PortalMarketplace() {
         startDate: '',
         estimatedEndDate: '',
         requiredProfessionalType: '',
+        requiredService: '',
+        minYearsExperience: 0,
         workersCount: 1,
         riskLevel: 'medio',
         description: '',
         requiresWorkingAtHeights: false,
         requiresConfinedSpaces: false,
+        requiresImmediateAvailability: false,
         requiredSpecialtiesText: '',
         attachmentsText: '',
         publishNow: true,
@@ -349,6 +356,16 @@ export default function PortalMarketplace() {
       refresh();
     } catch (err) {
       alert(err.response?.data?.message || 'No se pudo actualizar el estado');
+    }
+  };
+
+  const decideAssignment = async (assignmentId, decision) => {
+    const reason = decision === 'rejected' ? window.prompt('Motivo de rechazo (opcional):') || '' : '';
+    try {
+      await api.post(`/marketplace/assignments/${assignmentId}/decision`, { decision, reason });
+      refresh();
+    } catch (err) {
+      alert(err.response?.data?.message || 'No se pudo registrar la decision');
     }
   };
 
@@ -492,7 +509,7 @@ export default function PortalMarketplace() {
           <div className="card card-bemc p-3 mb-4">
             <h2 className="h5 mb-3">Mis asignaciones</h2>
             {assignments.length === 0 ? <p className="text-muted mb-0">Aun no tienes asignaciones.</p> : (
-              <div className="table-responsive"><table className="table align-middle"><thead><tr><th>Servicio</th><th>Valor</th><th>Estado</th><th>Accion</th><th>Seguimiento</th><th>Cierre</th></tr></thead><tbody>{assignments.map((a) => (<tr key={a._id}><td>{a.request?.requiredProfessionalType || 'Servicio SST'}</td><td>{formatMoney(a.agreedValue)}</td><td><StatusBadge value={a.status} map={assignmentStatuses} /></td><td>{a.status === 'assigned' && <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => updateAssignmentStatus(a._id, 'in_execution')}>Iniciar</button>}{a.status === 'in_execution' && <button type="button" className="btn btn-sm btn-success" onClick={() => updateAssignmentStatus(a._id, 'finished')}>Finalizar</button>}{a.status === 'finished' && <span className="small text-success">Finalizado</span>}</td><td className="d-flex gap-1 flex-wrap">{a.status === 'in_execution' && <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => createReport(a._id)}>Nuevo reporte</button>}<button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => loadReports(a._id)}>Ver reportes</button></td><td className="d-flex gap-1 flex-wrap">{a.status === 'finished' && <><button type="button" className="btn btn-sm btn-outline-success" onClick={() => rateAssignment(a._id)}>Calificar</button><button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => viewFinalArtifact(a._id, 'certificate')}>Certificado</button><button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => viewFinalArtifact(a._id, 'report')}>Informe final</button></>}</td></tr>))}</tbody></table></div>
+              <div className="table-responsive"><table className="table align-middle"><thead><tr><th>Servicio</th><th>Valor</th><th>Estado</th><th>Accion</th><th>Seguimiento</th><th>Cierre</th></tr></thead><tbody>{assignments.map((a) => (<tr key={a._id}><td>{a.request?.requiredProfessionalType || 'Servicio SST'}</td><td>{formatMoney(a.agreedValue)}</td><td><StatusBadge value={a.status} map={assignmentStatuses} /></td><td>{a.status === 'assigned' && a.professionalDecision !== 'accepted' && <div className="d-flex gap-1"><button type="button" className="btn btn-sm btn-outline-success" onClick={() => decideAssignment(a._id, 'accepted')}>Aceptar</button><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => decideAssignment(a._id, 'rejected')}>Rechazar</button></div>}{a.status === 'assigned' && a.professionalDecision === 'accepted' && <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => updateAssignmentStatus(a._id, 'in_execution')}>Iniciar</button>}{a.status === 'in_execution' && <button type="button" className="btn btn-sm btn-success" onClick={() => updateAssignmentStatus(a._id, 'finished')}>Finalizar</button>}{a.status === 'finished' && <span className="small text-success">Finalizado</span>}</td><td className="d-flex gap-1 flex-wrap">{a.status === 'in_execution' && <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => createReport(a._id)}>Nuevo reporte</button>}<button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => loadReports(a._id)}>Ver reportes</button></td><td className="d-flex gap-1 flex-wrap">{a.status === 'finished' && <><button type="button" className="btn btn-sm btn-outline-success" onClick={() => rateAssignment(a._id)}>Calificar</button><button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => viewFinalArtifact(a._id, 'certificate')}>Certificado</button><button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => viewFinalArtifact(a._id, 'report')}>Informe final</button></>}</td></tr>))}</tbody></table></div>
             )}
           </div>
         </>
@@ -509,6 +526,8 @@ export default function PortalMarketplace() {
               <div className="col-md-3"><input type="date" className="form-control" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} required /></div>
               <div className="col-md-3"><input type="date" className="form-control" value={form.estimatedEndDate} onChange={(e) => setForm((p) => ({ ...p, estimatedEndDate: e.target.value }))} /></div>
               <div className="col-md-4"><input className="form-control" placeholder="Tipo de profesional requerido" value={form.requiredProfessionalType} onChange={(e) => setForm((p) => ({ ...p, requiredProfessionalType: e.target.value }))} required /></div>
+              <div className="col-md-3"><input className="form-control" placeholder="Servicio requerido" value={form.requiredService} onChange={(e) => setForm((p) => ({ ...p, requiredService: e.target.value }))} /></div>
+              <div className="col-md-2"><input type="number" className="form-control" min="0" placeholder="Exp mín (años)" value={form.minYearsExperience} onChange={(e) => setForm((p) => ({ ...p, minYearsExperience: e.target.value }))} /></div>
               <div className="col-md-2"><input type="number" className="form-control" min="1" value={form.workersCount} onChange={(e) => setForm((p) => ({ ...p, workersCount: e.target.value }))} required /></div>
               <div className="col-md-2"><select className="form-select" value={form.riskLevel} onChange={(e) => setForm((p) => ({ ...p, riskLevel: e.target.value }))}><option value="bajo">Riesgo bajo</option><option value="medio">Riesgo medio</option><option value="alto">Riesgo alto</option></select></div>
               <div className="col-md-4"><input className="form-control" placeholder="Especialidades (separadas por coma)" value={form.requiredSpecialtiesText} onChange={(e) => setForm((p) => ({ ...p, requiredSpecialtiesText: e.target.value }))} /></div>
@@ -516,6 +535,7 @@ export default function PortalMarketplace() {
               <div className="col-12"><textarea className="form-control" rows="3" placeholder="Describe alcance, riesgos y actividades" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} required /></div>
               <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="heights" type="checkbox" checked={form.requiresWorkingAtHeights} onChange={(e) => setForm((p) => ({ ...p, requiresWorkingAtHeights: e.target.checked }))} /><label className="form-check-label" htmlFor="heights">Requiere alturas</label></div>
               <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="confined" type="checkbox" checked={form.requiresConfinedSpaces} onChange={(e) => setForm((p) => ({ ...p, requiresConfinedSpaces: e.target.checked }))} /><label className="form-check-label" htmlFor="confined">Requiere espacios confinados</label></div>
+              <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="immediate" type="checkbox" checked={form.requiresImmediateAvailability} onChange={(e) => setForm((p) => ({ ...p, requiresImmediateAvailability: e.target.checked }))} /><label className="form-check-label" htmlFor="immediate">Requiere disponibilidad inmediata</label></div>
               <div className="col-md-3 form-check ms-2"><input className="form-check-input" id="publish" type="checkbox" checked={form.publishNow} onChange={(e) => setForm((p) => ({ ...p, publishNow: e.target.checked }))} /><label className="form-check-label" htmlFor="publish">Publicar de inmediato</label></div>
               <div className="col-12"><button type="submit" className="btn btn-bemc btn-sm">Crear solicitud</button></div>
             </form>
@@ -532,7 +552,7 @@ export default function PortalMarketplace() {
             <div key={requestId} className="card card-bemc p-3 mb-3">
               <h3 className="h6 mb-3">Postulaciones para solicitud {requestId.slice(-6)}</h3>
               {list.length === 0 ? <p className="text-muted mb-0">No hay postulaciones.</p> : (
-                <div className="table-responsive"><table className="table align-middle"><thead><tr><th>Profesional</th><th>Propuesta</th><th>Disponibilidad</th><th>Estado</th><th>Perfil profesional</th><th /></tr></thead><tbody>{list.map((a) => (<tr key={a._id}><td>{a.professional?.profile?.firstName || 'Profesional'} {a.professional?.profile?.lastName || ''}</td><td>{formatMoney(a.economicProposal)}</td><td>{a.availabilityNote || '—'}</td><td>{a.status}</td><td className="small"><div>Rating: {a.professionalRatingAvg || 0}</div><div>Servicios: {a.professionalCompletedServices || 0}</div><div>Experiencia: {a.professional?.professionalProfile?.yearsExperience || 0} años</div><div>Estudios: {(a.professional?.professionalProfile?.studies || []).length}</div><div>Licencias: {(a.professional?.professionalProfile?.licenses || []).length}</div><div>Certificaciones: {(a.professionalCertifications || []).length}</div></td><td><button type="button" className="btn btn-sm btn-bemc" onClick={() => selectProfessional(requestId, a.professional?._id)} disabled={a.status !== 'active'}>Seleccionar</button></td></tr>))}</tbody></table></div>
+                <div className="table-responsive"><table className="table align-middle"><thead><tr><th>Profesional</th><th>Propuesta</th><th>Disponibilidad</th><th>Estado</th><th>Perfil profesional</th><th>Perfil completo</th><th /></tr></thead><tbody>{list.map((a) => (<tr key={a._id}><td>{a.professional?.profile?.firstName || 'Profesional'} {a.professional?.profile?.lastName || ''}</td><td>{formatMoney(a.economicProposal)}</td><td>{a.availabilityNote || '—'}</td><td>{a.status}</td><td className="small"><div>Rating: {a.professionalRatingAvg || 0}</div><div>Servicios: {a.professionalCompletedServices || 0}</div><div>Experiencia: {a.professional?.professionalProfile?.yearsExperience || 0} años</div><div>Estudios: {(a.professional?.professionalProfile?.studies || []).length}</div><div>Licencias: {(a.professional?.professionalProfile?.licenses || []).length}</div><div>Certificaciones: {(a.professionalCertifications || []).length}</div></td><td>{a.professional?._id ? <Link className="btn btn-sm btn-outline-secondary" to={`/profesionales-sst/${a.professional._id}`} target="_blank" rel="noreferrer">Ver perfil completo</Link> : '—'}</td><td><button type="button" className="btn btn-sm btn-bemc" onClick={() => selectProfessional(requestId, a.professional?._id)} disabled={a.status !== 'active'}>Seleccionar</button></td></tr>))}</tbody></table></div>
               )}
             </div>
           ))}

@@ -6,7 +6,7 @@ export default function CompanyServices() {
   const [reports, setReports] = useState({});
 
   useEffect(() => {
-    api.get('/marketplace/assignments').then((r) => setAssignments((r.data || []).filter((a) => ['assigned', 'in_execution', 'finished'].includes(a.status))));
+    api.get('/marketplace/assignments').then((r) => setAssignments((r.data || []).filter((a) => ['assigned', 'in_execution', 'finished', 'cancelled'].includes(a.status))));
   }, []);
 
   const loadReports = async (id) => {
@@ -24,6 +24,10 @@ export default function CompanyServices() {
             <button className="btn btn-sm btn-outline-secondary" onClick={() => loadReports(a._id)}>Ver reportes</button>
           </div>
           <div className="small text-muted mb-2">Profesional: {a.professional?.profile?.firstName || ''} {a.professional?.profile?.lastName || ''}</div>
+          <div className="small text-muted mb-2">
+            Decisión del profesional: {a.professionalDecision === 'accepted' ? 'aceptada' : a.professionalDecision === 'rejected' ? 'rechazada' : 'pendiente'}
+          </div>
+          {a.professionalDecisionReason && <div className="small text-muted mb-2">Motivo: {a.professionalDecisionReason}</div>}
           <ul className="mb-0">
             {(reports[a._id] || []).map((r) => (
               <li key={r._id}>{new Date(r.reportDate).toLocaleDateString('es-CO')} - {r.activities} - {r.workedHours}h - {r.observations || 'Sin observaciones'}</li>

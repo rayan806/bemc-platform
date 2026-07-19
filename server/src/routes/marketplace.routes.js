@@ -19,6 +19,7 @@ import {
   ProfessionalCertification,
   PROFESSIONAL_CERTIFICATION_TYPES,
 } from '../models/ProfessionalCertification.js';
+import { ProfessionalDocument, PROFESSIONAL_DOCUMENT_TYPES } from '../models/ProfessionalDocument.js';
 import { Notification } from '../models/Notification.js';
 import { logAudit } from '../utils/audit.js';
 import { findMatchingProfessionals } from '../services/marketplaceMatcher.service.js';
@@ -70,6 +71,51 @@ async function recomputeProfessionalRating(professionalId) {
   });
 }
 
+function computeProfileCompletion(user, certificationsCount = 0, documentsCount = 0) {
+  const profile = user?.profile || {};
+  const professionalProfile = user?.professionalProfile || {};
+
+  const checks = [
+    !!profile.avatarUrl,
+    !!profile.firstName,
+    !!profile.documentType,
+    !!profile.documentNumber,
+    !!profile.city,
+    !!profile.phone,
+    !!profile.bio,
+    !!professionalProfile.mainProfession,
+    !!professionalProfile.mainRole,
+    Number(professionalProfile.yearsExperience || 0) > 0,
+    !!professionalProfile.licenseNumber,
+    !!professionalProfile.licenseIssuedAt,
+    !!professionalProfile.licenseExpiryDate,
+    (professionalProfile.areasExperience || []).length > 0,
+    (professionalProfile.servicesOffered || []).length > 0,
+    (professionalProfile.serviceMunicipalities || []).length > 0,
+    (professionalProfile.serviceDepartments || []).length > 0,
+    (professionalProfile.workExperiences || []).length > 0,
+    (professionalProfile.educationItems || []).length > 0,
+    certificationsCount > 0,
+    documentsCount > 0,
+  ];
+
+  const completed = checks.filter(Boolean).length;
+  const percentage = Math.round((completed / checks.length) * 100);
+
+  const recommendations = [];
+  if (!professionalProfile.licenseNumber) recommendations.push('Sube tu licencia SST.');
+  if (certificationsCount === 0) recommendations.push('Agrega una certificación.');
+  if ((professionalProfile.workExperiences || []).length === 0) {
+    recommendations.push('Completa tu experiencia laboral.');
+  }
+  if ((professionalProfile.educationItems || []).length === 0) {
+    recommendations.push('Completa tu formación académica.');
+  }
+  if (documentsCount === 0) recommendations.push('Sube tus documentos profesionales.');
+
+  return { percentage, recommendations };
+}
+
 router.get('/professionals/public', async (req, res, next) => {
   try {
     const city = (req.query.city || '').trim();
@@ -116,10 +162,57 @@ router.get('/professionals/me', async (req, res, next) => {
     if (!isProfessional(req.user)) {
       return res.status(403).json({ message: 'Solo profesionales SST' });
     }
-    const certifications = await ProfessionalCertification.find({ professional: req.user._id }).sort({
-      createdAt: -1,
+    const [certifications, documents, freshUser] = await Promise.all([
+      ProfessionalCertification.find({ professional: req.user._id }).sort({ createdAt: -1 }),
+      ProfessionalDocument.find({ professional: req.user._id }).sort({ createdAt: -1 }),
+      User.findById(req.user._id),
+    ]);
+    const completion = computeProfileCompletion(
+      freshUser?.toObject() || req.user,
+      certifications.length,
+      documents.length
+    );
+    res.json({ user: freshUser?.toSafeJSON() || req.user.toSafeJSON(), certifications, documents, completion });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/professionals/:id/public', async (req, res, next) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id, role: 'professional_sst', isActive: true }).lean();
+    if (!user) return res.status(404).json({ message: 'Profesional no encontrado' });
+
+    const [certifications, documents, ratings] = await Promise.all([
+      ProfessionalCertification.find({ professional: user._id })
+        .select('type title fileUrl issuedAt expiresAt isVerified')
+        .sort({ createdAt: -1 })
+        .lean(),
+      ProfessionalDocument.find({ professional: user._id })
+        .select('name type fileUrl expiresAt status createdAt')
+        .sort({ createdAt: -1 })
+        .lean(),
+      MarketplaceRating.find({ toUser: user._id, type: 'company_to_professional' })
+        .populate('fromUser', 'profile')
+        .select('score comment createdAt fromUser')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+    ]);
+
+    res.json({
+      _id: user._id,
+      profile: user.profile,
+      professionalProfile: user.professionalProfile,
+      certifications,
+      documents,
+      companyComments: ratings.map((r) => ({
+        score: r.score,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        companyName: `${r.fromUser?.profile?.firstName || ''} ${r.fromUser?.profile?.lastName || ''}`.trim(),
+      })),
     });
-    res.json({ user: req.user.toSafeJSON(), certifications });
   } catch (err) {
     next(err);
   }
@@ -144,17 +237,26 @@ router.patch(
       const allowed = [
         'mainProfession',
         'mainRole',
+        'specialty',
         'yearsExperience',
         'experienceSummary',
         'licenseNumber',
+        'licenseIssuedAt',
         'licenseExpiryDate',
+        'licenseStatus',
         'licenses',
+        'workExperiences',
         'studies',
+        'educationItems',
+        'areasExperience',
+        'servicesOffered',
         'specialties',
         'city',
         'department',
         'serviceMunicipalities',
+        'serviceDepartments',
         'canTravel',
+        'immediateAvailability',
         'availabilityStatus',
       ];
 
@@ -166,6 +268,26 @@ router.patch(
       }
       if (req.body.profile?.avatarUrl !== undefined) {
         patch['profile.avatarUrl'] = req.body.profile.avatarUrl;
+      }
+      const profileAllowed = [
+        'firstName',
+        'lastName',
+        'documentType',
+        'documentNumber',
+        'birthDate',
+        'gender',
+        'city',
+        'department',
+        'address',
+        'phone',
+        'whatsapp',
+        'bio',
+        'avatarUrl',
+      ];
+      for (const key of profileAllowed) {
+        if (req.body.profile?.[key] !== undefined) {
+          patch[`profile.${key}`] = req.body.profile[key];
+        }
       }
 
       const user = await User.findByIdAndUpdate(req.user._id, { $set: patch }, { new: true }).populate(
@@ -228,6 +350,122 @@ router.post(
   }
 );
 
+router.get('/professionals/me/documents', async (req, res, next) => {
+  try {
+    if (!isProfessional(req.user)) {
+      return res.status(403).json({ message: 'Solo profesionales SST' });
+    }
+    const documents = await ProfessionalDocument.find({ professional: req.user._id }).sort({ createdAt: -1 });
+    res.json(documents);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(
+  '/professionals/me/documents',
+  [
+    body('name').trim().notEmpty(),
+    body('type').isIn(PROFESSIONAL_DOCUMENT_TYPES),
+    body('fileUrl').trim().notEmpty(),
+    body('expiresAt').optional().isISO8601(),
+  ],
+  async (req, res, next) => {
+    try {
+      if (!isProfessional(req.user)) {
+        return res.status(403).json({ message: 'Solo profesionales SST' });
+      }
+      if (!validate(req, res)) return;
+
+      const document = await ProfessionalDocument.create({
+        professional: req.user._id,
+        name: req.body.name,
+        type: req.body.type,
+        fileUrl: req.body.fileUrl,
+        expiresAt: req.body.expiresAt,
+        status: req.body.status || 'active',
+      });
+
+      await logAudit({
+        user: req.user,
+        action: 'create_professional_document',
+        entity: 'ProfessionalDocument',
+        entityId: document._id,
+        req,
+      });
+
+      res.status(201).json(document);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.put(
+  '/professionals/me/documents/:id',
+  [body('name').optional().trim(), body('fileUrl').optional().trim(), body('expiresAt').optional().isISO8601()],
+  async (req, res, next) => {
+    try {
+      if (!isProfessional(req.user)) {
+        return res.status(403).json({ message: 'Solo profesionales SST' });
+      }
+      if (!validate(req, res)) return;
+
+      const patch = {};
+      if (req.body.name !== undefined) patch.name = req.body.name;
+      if (req.body.type !== undefined) patch.type = req.body.type;
+      if (req.body.fileUrl !== undefined) patch.fileUrl = req.body.fileUrl;
+      if (req.body.expiresAt !== undefined) patch.expiresAt = req.body.expiresAt;
+      if (req.body.status !== undefined) patch.status = req.body.status;
+
+      const document = await ProfessionalDocument.findOneAndUpdate(
+        { _id: req.params.id, professional: req.user._id },
+        patch,
+        { new: true }
+      );
+      if (!document) return res.status(404).json({ message: 'Documento no encontrado' });
+
+      await logAudit({
+        user: req.user,
+        action: 'update_professional_document',
+        entity: 'ProfessionalDocument',
+        entityId: document._id,
+        changes: patch,
+        req,
+      });
+
+      res.json(document);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.delete('/professionals/me/documents/:id', async (req, res, next) => {
+  try {
+    if (!isProfessional(req.user)) {
+      return res.status(403).json({ message: 'Solo profesionales SST' });
+    }
+    const document = await ProfessionalDocument.findOneAndDelete({
+      _id: req.params.id,
+      professional: req.user._id,
+    });
+    if (!document) return res.status(404).json({ message: 'Documento no encontrado' });
+
+    await logAudit({
+      user: req.user,
+      action: 'delete_professional_document',
+      entity: 'ProfessionalDocument',
+      entityId: document._id,
+      req,
+    });
+
+    res.json({ message: 'Documento eliminado' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post(
   '/requests',
   [
@@ -265,11 +503,14 @@ router.post(
         startDate: req.body.startDate,
         estimatedEndDate: req.body.estimatedEndDate,
         requiredProfessionalType: req.body.requiredProfessionalType,
+        requiredService: req.body.requiredService,
+        minYearsExperience: Number(req.body.minYearsExperience || 0),
         workersCount: req.body.workersCount,
         riskLevel: req.body.riskLevel,
         schedule: req.body.schedule,
         requiresWorkingAtHeights: !!req.body.requiresWorkingAtHeights,
         requiresConfinedSpaces: !!req.body.requiresConfinedSpaces,
+        requiresImmediateAvailability: !!req.body.requiresImmediateAvailability,
         requiredSpecialties: req.body.requiredSpecialties || [],
         description: req.body.description,
         attachments: req.body.attachments || [],
@@ -592,15 +833,39 @@ router.post(
         return res.status(404).json({ message: 'Postulación no encontrada para el profesional seleccionado' });
       }
 
-      const assignment = await MarketplaceAssignment.create({
-        request: request._id,
-        professional: req.body.professionalId,
-        company: request.company,
-        assignedBy: req.user._id,
-        assignedAt: new Date(),
-        agreedValue: req.body.agreedValue,
-        status: 'assigned',
-      });
+      let assignment = await MarketplaceAssignment.findOne({ request: request._id });
+      if (assignment && assignment.status !== 'cancelled') {
+        return res.status(409).json({ message: 'La solicitud ya tiene una asignación activa' });
+      }
+
+      if (!assignment) {
+        assignment = await MarketplaceAssignment.create({
+          request: request._id,
+          professional: req.body.professionalId,
+          company: request.company,
+          assignedBy: req.user._id,
+          assignedAt: new Date(),
+          agreedValue: req.body.agreedValue,
+          status: 'assigned',
+          professionalDecision: 'pending',
+          professionalDecisionAt: null,
+          professionalDecisionReason: '',
+        });
+      } else {
+        assignment.professional = req.body.professionalId;
+        assignment.company = request.company;
+        assignment.assignedBy = req.user._id;
+        assignment.assignedAt = new Date();
+        assignment.agreedValue = req.body.agreedValue;
+        assignment.status = 'assigned';
+        assignment.professionalDecision = 'pending';
+        assignment.professionalDecisionAt = null;
+        assignment.professionalDecisionReason = '';
+        assignment.finishedAt = undefined;
+        assignment.finalCertificateUrl = undefined;
+        assignment.finalReportUrl = undefined;
+        await assignment.save();
+      }
 
       request.status = 'professional_selected';
       request.selectedProfessional = req.body.professionalId;
@@ -645,9 +910,6 @@ router.post(
 
       res.status(201).json(assignment);
     } catch (err) {
-      if (err.code === 11000) {
-        return res.status(409).json({ message: 'La solicitud ya tiene una asignación activa' });
-      }
       next(err);
     }
   }
@@ -703,6 +965,108 @@ router.get('/history', async (req, res, next) => {
   }
 });
 
+router.post(
+  '/assignments/:id/decision',
+  [body('decision').isIn(['accepted', 'rejected']), body('reason').optional().trim()],
+  async (req, res, next) => {
+    try {
+      if (!validate(req, res)) return;
+
+      if (!isProfessional(req.user)) {
+        return res.status(403).json({ message: 'Solo profesionales SST pueden decidir la asignación' });
+      }
+
+      const assignment = await MarketplaceAssignment.findById(req.params.id).populate('request');
+      if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+
+      if (assignment.professional.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Sin permisos' });
+      }
+
+      if (assignment.status !== 'assigned') {
+        return res.status(400).json({ message: 'Solo puedes decidir asignaciones pendientes' });
+      }
+
+      assignment.professionalDecision = req.body.decision;
+      assignment.professionalDecisionAt = new Date();
+      assignment.professionalDecisionReason = req.body.reason || '';
+
+      if (req.body.decision === 'accepted') {
+        await assignment.save();
+
+        await notifyUser(
+          assignment.request.createdBy,
+          'assignment_accepted',
+          'Profesional confirmó asignación',
+          'El profesional aceptó la asignación y puede iniciar el servicio.',
+          { requestId: assignment.request._id, assignmentId: assignment._id }
+        );
+
+        await logAudit({
+          user: req.user,
+          action: 'accept_marketplace_assignment',
+          entity: 'MarketplaceAssignment',
+          entityId: assignment._id,
+          changes: { professionalDecision: 'accepted' },
+          req,
+        });
+
+        return res.json(assignment);
+      }
+
+      assignment.status = 'cancelled';
+      await assignment.save();
+
+      await MarketplaceRequest.findByIdAndUpdate(assignment.request._id, {
+        status: 'in_postulation',
+        $unset: { selectedProfessional: 1, selectedAt: 1 },
+      });
+
+      await MarketplaceApplication.updateOne(
+        { request: assignment.request._id, professional: req.user._id },
+        { $set: { status: 'rejected' } }
+      );
+
+      await MarketplaceApplication.updateMany(
+        { request: assignment.request._id, professional: { $ne: req.user._id }, status: 'closed' },
+        { $set: { status: 'active' } }
+      );
+
+      const matches = await findMatchingProfessionals(assignment.request);
+      for (const pro of matches) {
+        await notifyUser(
+          pro._id,
+          'marketplace_reopened',
+          'Solicitud reabierta',
+          'Una solicitud volvió a estar disponible para postulación.',
+          { requestId: assignment.request._id }
+        );
+      }
+
+      await notifyUser(
+        assignment.request.createdBy,
+        'assignment_rejected',
+        'Profesional rechazó asignación',
+        'El profesional rechazó la asignación. La solicitud fue reabierta.',
+        { requestId: assignment.request._id, assignmentId: assignment._id }
+      );
+
+      await logAudit({
+        user: req.user,
+        action: 'reject_marketplace_assignment',
+        entity: 'MarketplaceAssignment',
+        entityId: assignment._id,
+        changes: { professionalDecision: 'rejected', status: 'cancelled' },
+        req,
+      });
+
+      res.json(assignment);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 router.patch(
   '/assignments/:id/status',
   [body('status').isIn(MARKETPLACE_ASSIGNMENT_STATUSES)],
@@ -718,6 +1082,14 @@ router.patch(
       const isOperator = req.user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role);
       if (!isOwnerProfessional && !isOwnerCompany && !isOperator) {
         return res.status(403).json({ message: 'Sin permisos' });
+      }
+
+      if (req.body.status === 'in_execution' && assignment.professionalDecision !== 'accepted' && !isOperator) {
+        return res.status(400).json({ message: 'El profesional debe aceptar la asignación antes de iniciar' });
+      }
+
+      if (req.body.status === 'finished' && assignment.status !== 'in_execution') {
+        return res.status(400).json({ message: 'Solo puedes finalizar asignaciones en ejecución' });
       }
 
       assignment.status = req.body.status;
@@ -976,12 +1348,16 @@ router.get('/summary', async (req, res, next) => {
       return res.status(403).json({ message: 'Solo profesionales SST' });
     }
 
-    const [activeApplications, assignedServices, activeServices, finishedServices] = await Promise.all([
+    const [activeApplications, assignedServices, activeServices, finishedServices, certificationsCount, documentsCount] = await Promise.all([
       MarketplaceApplication.countDocuments({ professional: req.user._id, status: 'active' }),
       MarketplaceAssignment.countDocuments({ professional: req.user._id }),
       MarketplaceAssignment.countDocuments({ professional: req.user._id, status: 'in_execution' }),
       MarketplaceAssignment.countDocuments({ professional: req.user._id, status: 'finished' }),
+      ProfessionalCertification.countDocuments({ professional: req.user._id }),
+      ProfessionalDocument.countDocuments({ professional: req.user._id }),
     ]);
+
+    const completion = computeProfileCompletion(req.user, certificationsCount, documentsCount);
 
     res.json({
       activeApplications,
@@ -989,6 +1365,7 @@ router.get('/summary', async (req, res, next) => {
       activeServices,
       finishedServices,
       profile: req.user.professionalProfile || {},
+      completion,
     });
   } catch (err) {
     next(err);
