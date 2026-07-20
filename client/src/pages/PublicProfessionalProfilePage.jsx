@@ -2,6 +2,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
 
+const textFixes = {
+  'Construcci�n': 'Construccion',
+  'Miner�a': 'Mineria',
+  'Petr�leo': 'Petroleo',
+  'Educaci�n': 'Educacion',
+  'SISO por d�as': 'SISO por dias',
+  'Consultor�a': 'Consultoria',
+  'Investigaci�n de accidentes': 'Investigacion de accidentes',
+  'Especializaci�n': 'Especializacion',
+};
+
+function normalizeText(value) {
+  if (!value) return '';
+  const text = String(value);
+  return textFixes[text] || text;
+}
+
 function formatDate(value) {
   if (!value) return 'Sin fecha';
   return new Date(value).toLocaleDateString('es-CO');
@@ -108,7 +125,7 @@ export default function PublicProfessionalProfilePage() {
             )}
             <div>
               <h1 className="h3 mb-1">{fullName}</h1>
-              <div className="text-muted">{professional.mainProfession || 'Profesional SST'} · {professional.specialty || 'Especialidad no definida'}</div>
+              <div className="text-muted">{normalizeText(professional.mainProfession) || 'Profesional SST'} · {normalizeText(professional.specialty) || 'Especialidad no definida'}</div>
               <div className="small text-muted">{professional.city || 'Ciudad'} · {professional.department || 'Departamento'}</div>
             </div>
           </div>
@@ -148,9 +165,9 @@ export default function PublicProfessionalProfilePage() {
                   <div key={`wk-${idx}`} className="timeline-item">
                     <div className="timeline-dot" />
                     <div className="timeline-card">
-                      <div className="fw-semibold">{work.company || 'Empresa'} · {work.role || 'Cargo'}</div>
+                      <div className="fw-semibold">{normalizeText(work.company) || 'Empresa'} · {normalizeText(work.role) || 'Cargo'}</div>
                       <div className="small text-muted">{work.city || 'Ciudad'} · {formatDate(work.startDate)} - {work.endDate ? formatDate(work.endDate) : 'Actual'}</div>
-                      <p className="small mb-0 mt-1">{work.functions || 'Sin descripcion de funciones.'}</p>
+                      <p className="small mb-0 mt-1">{normalizeText(work.functions) || 'Sin descripcion de funciones.'}</p>
                     </div>
                   </div>
                 ))}
@@ -167,9 +184,9 @@ export default function PublicProfessionalProfilePage() {
                 {professional.educationItems.map((ed, idx) => (
                   <div className="col-md-6" key={`ed-${idx}`}>
                     <div className="border rounded p-2 h-100 bg-white">
-                      <div className="fw-semibold">{ed.level || 'Nivel no definido'}</div>
-                      <div className="small">{ed.title || 'Titulo no definido'}</div>
-                      <div className="small text-muted">{ed.institution || 'Institucion no definida'}</div>
+                      <div className="fw-semibold">{normalizeText(ed.level) || 'Nivel no definido'}</div>
+                      <div className="small">{normalizeText(ed.title) || 'Titulo no definido'}</div>
+                      <div className="small text-muted">{normalizeText(ed.institution) || 'Institucion no definida'}</div>
                       <div className="small text-muted">{formatDate(ed.startDate)} - {ed.endDate ? formatDate(ed.endDate) : 'Actual'}</div>
                     </div>
                   </div>
@@ -185,13 +202,13 @@ export default function PublicProfessionalProfilePage() {
             <div className="mb-2">
               <div className="small fw-semibold mb-1">Servicios</div>
               <div className="d-flex flex-wrap gap-2">
-                {(professional.servicesOffered || []).length ? (professional.servicesOffered || []).map((s) => <span key={s} className="profile-chip">{s}</span>) : <span className="text-muted small">Sin servicios publicados</span>}
+                {(professional.servicesOffered || []).length ? (professional.servicesOffered || []).map((s) => <span key={s} className="profile-chip">{normalizeText(s)}</span>) : <span className="text-muted small">Sin servicios publicados</span>}
               </div>
             </div>
             <div>
               <div className="small fw-semibold mb-1">Areas de experiencia</div>
               <div className="d-flex flex-wrap gap-2">
-                {(professional.areasExperience || []).length ? (professional.areasExperience || []).map((a) => <span key={a} className="profile-chip profile-chip-soft">{a}</span>) : <span className="text-muted small">Sin areas publicadas</span>}
+                {(professional.areasExperience || []).length ? (professional.areasExperience || []).map((a) => <span key={a} className="profile-chip profile-chip-soft">{normalizeText(a)}</span>) : <span className="text-muted small">Sin areas publicadas</span>}
               </div>
             </div>
           </div>
@@ -208,8 +225,8 @@ export default function PublicProfessionalProfilePage() {
               <div className="d-grid gap-2">
                 {certifications.slice(0, 6).map((cert) => (
                   <div key={cert._id} className="border rounded p-2 bg-white">
-                    <div className="fw-semibold small">{cert.title}</div>
-                    <div className="small text-muted">{cert.type}</div>
+                    <div className="fw-semibold small">{normalizeText(cert.title)}</div>
+                    <div className="small text-muted">{normalizeText(cert.type)}</div>
                     <div className="small">Expedida: {formatDate(cert.issuedAt)}</div>
                     <div className="small">Vence: {formatDate(cert.expiresAt)}</div>
                     <div className="mt-1 d-flex gap-2">
@@ -232,7 +249,7 @@ export default function PublicProfessionalProfilePage() {
                   <div key={`cm-${idx}`} className="border rounded p-2 bg-white">
                     <div className="small fw-semibold">{comment.companyName || 'Empresa'}</div>
                     <div className="small text-muted">{formatDate(comment.createdAt)} · {comment.score}/5</div>
-                    <p className="small mb-0 mt-1">{comment.comment || 'Sin comentario'}</p>
+                    <p className="small mb-0 mt-1">{normalizeText(comment.comment) || 'Sin comentario'}</p>
                   </div>
                 ))}
               </div>
