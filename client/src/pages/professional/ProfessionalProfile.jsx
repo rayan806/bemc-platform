@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../../api/client';
 
 const areasOptions = ['Construccion', 'Industria', 'Mineria', 'Petroleo', 'Energia', 'Manufactura', 'Transporte', 'Salud', 'Educacion', 'Agroindustria', 'Otras'];
@@ -172,7 +172,7 @@ export default function ProfessionalProfile() {
   const addEdu = () => setForm((p) => ({ ...p, educationItems: [...p.educationItems, { level: '', title: '', institution: '', startDate: '', endDate: '', city: '' }] }));
 
   const headerStatusLabel = form?.availabilityStatus === 'available' ? 'Disponible' : form?.availabilityStatus === 'busy' ? 'Ocupado' : 'No disponible';
-  const licenseAlert = useMemo(() => licenseWarning(form?.licenseExpiryDate), [form?.licenseExpiryDate]);
+  const licenseAlert = licenseWarning(form?.licenseExpiryDate);
   const expiringDocs = expiringCount(documents, 45);
   const expiringCerts = expiringCount(certifications, 45);
   const certificationLoadedTypes = new Set((certifications || []).map((c) => c.type));
