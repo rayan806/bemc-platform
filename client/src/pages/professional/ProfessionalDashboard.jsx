@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
 
@@ -48,17 +48,11 @@ export default function ProfessionalDashboard() {
     });
   }, []);
 
-  if (!summary) return <div className="spinner-border text-primary" />;
-
   const unreadNotifications = notifications.filter((n) => !n.readAt).length;
   const recentNotifications = notifications.slice(0, 5);
-  const uniqueCompanies = useMemo(() => {
-    const ids = new Set();
-    for (const row of assignments) {
-      if (row?.company?._id) ids.add(row.company._id);
-    }
-    return ids.size;
-  }, [assignments]);
+  const uniqueCompanies = new Set(assignments.map((row) => row?.company?._id).filter(Boolean)).size;
+
+  if (!summary) return <div className="spinner-border text-primary" />;
 
   const expiringDocuments = getExpiringCount(me.documents, 45);
   const expiringCertifications = getExpiringCount(me.certifications, 45);
