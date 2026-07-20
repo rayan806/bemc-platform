@@ -354,6 +354,52 @@ router.post(
   }
 );
 
+router.put(
+  '/professionals/me/certifications/:id',
+  [
+    body('title').optional().trim().notEmpty(),
+    body('fileUrl').optional().trim().notEmpty(),
+    body('issuedAt').optional().isISO8601(),
+    body('expiresAt').optional().isISO8601(),
+    body('type').optional().isIn(PROFESSIONAL_CERTIFICATION_TYPES),
+  ],
+  async (req, res, next) => {
+    try {
+      if (!isProfessional(req.user)) {
+        return res.status(403).json({ message: 'Solo profesionales SST' });
+      }
+      if (!validate(req, res)) return;
+
+      const patch = {};
+      if (req.body.title !== undefined) patch.title = req.body.title;
+      if (req.body.fileUrl !== undefined) patch.fileUrl = req.body.fileUrl;
+      if (req.body.issuedAt !== undefined) patch.issuedAt = req.body.issuedAt;
+      if (req.body.expiresAt !== undefined) patch.expiresAt = req.body.expiresAt;
+      if (req.body.type !== undefined) patch.type = req.body.type;
+
+      const certification = await ProfessionalCertification.findOneAndUpdate(
+        { _id: req.params.id, professional: req.user._id },
+        patch,
+        { new: true }
+      );
+      if (!certification) return res.status(404).json({ message: 'Certificación no encontrada' });
+
+      await logAudit({
+        user: req.user,
+        action: 'update_certification',
+        entity: 'ProfessionalCertification',
+        entityId: certification._id,
+        changes: patch,
+        req,
+      });
+
+      res.json(certification);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 router.get('/professionals/me/documents', async (req, res, next) => {
   try {
     if (!isProfessional(req.user)) {
