@@ -39,6 +39,9 @@ const marketplaceRequestSchema = new mongoose.Schema(
     contactEmail: { type: String, required: true, trim: true, lowercase: true },
     city: { type: String, required: true, trim: true },
     department: { type: String, required: true, trim: true },
+    cityCode: { type: String, required: true, trim: true },
+    departmentCode: { type: String, required: true, trim: true },
+    countryCode: { type: String, default: 'CO', trim: true },
     address: { type: String, trim: true },
     startDate: { type: Date, required: true },
     estimatedEndDate: { type: Date },
@@ -75,7 +78,7 @@ const marketplaceRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-marketplaceRequestSchema.index({ city: 1, department: 1, status: 1 });
+marketplaceRequestSchema.index({ cityCode: 1, departmentCode: 1, status: 1 });
 marketplaceRequestSchema.index({ requiredProfessionalType: 1, status: 1 });
 
 export const MarketplaceRequest = mongoose.model('MarketplaceRequest', marketplaceRequestSchema);

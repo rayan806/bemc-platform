@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../api/client';
+import LocationAutocomplete from '../components/locations/LocationAutocomplete';
 
 export default function PublicCompanyQuotePage() {
   const [form, setForm] = useState({
@@ -7,7 +8,7 @@ export default function PublicCompanyQuotePage() {
     contactName: '',
     email: '',
     phone: '',
-    city: '',
+    cityLocation: null,
     workersCount: 1,
     serviceNeed: '',
     message: '',
@@ -18,7 +19,14 @@ export default function PublicCompanyQuotePage() {
     e.preventDefault();
     setMsg('');
     try {
-      const { data } = await api.post('/public/quotes', { ...form, workersCount: Number(form.workersCount) });
+      if (!form.cityLocation) {
+        setMsg('Selecciona una ciudad valida desde la lista.');
+        return;
+      }
+      const { data } = await api.post('/public/quotes', {
+        ...form,
+        workersCount: Number(form.workersCount),
+      });
       setMsg(data.message || 'Solicitud enviada');
     } catch (err) {
       setMsg(err.response?.data?.message || 'No se pudo enviar la solicitud');
@@ -35,7 +43,15 @@ export default function PublicCompanyQuotePage() {
         <div className="col-md-6"><input className="form-control" placeholder="Contacto" required value={form.contactName} onChange={(e) => setForm((p) => ({ ...p, contactName: e.target.value }))} /></div>
         <div className="col-md-4"><input className="form-control" type="email" placeholder="Correo" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} /></div>
         <div className="col-md-4"><input className="form-control" placeholder="Telefono" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} /></div>
-        <div className="col-md-4"><input className="form-control" placeholder="Ciudad" value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} /></div>
+        <div className="col-md-4">
+          <LocationAutocomplete
+            type="city"
+            placeholder="Ciudad"
+            value={form.cityLocation}
+            onChange={(option) => setForm((p) => ({ ...p, cityLocation: option }))}
+            required
+          />
+        </div>
         <div className="col-md-4"><input type="number" min="1" className="form-control" placeholder="Numero de trabajadores" value={form.workersCount} onChange={(e) => setForm((p) => ({ ...p, workersCount: e.target.value }))} /></div>
         <div className="col-md-8"><input className="form-control" placeholder="Necesidad del servicio" required value={form.serviceNeed} onChange={(e) => setForm((p) => ({ ...p, serviceNeed: e.target.value }))} /></div>
         <div className="col-12"><textarea className="form-control" rows="4" placeholder="Describe tu proyecto" value={form.message} onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))} /></div>

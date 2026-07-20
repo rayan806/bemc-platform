@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
+import LocationAutocomplete from '../../components/locations/LocationAutocomplete';
 
 const areasOptions = ['Construccion', 'Industria', 'Mineria', 'Petroleo', 'Energia', 'Manufactura', 'Transporte', 'Salud', 'Educacion', 'Agroindustria', 'Otras'];
 const servicesOptions = ['SISO por dias', 'SISO tiempo completo', 'Inspector SST', 'Coordinador de Trabajo en Alturas', 'Auditor SG-SST', 'Capacitaciones', 'Investigacion de accidentes', 'Elaboracion de documentos SG-SST', 'Inspecciones', 'Consultoria', 'Otros'];
@@ -26,12 +27,24 @@ function normalizeArray(values) {
   return (values || []).map((v) => normalizeCorruptedText(v)).filter(Boolean);
 }
 
-function csvToArray(value) {
-  return (value || '').split(',').map((v) => v.trim()).filter(Boolean);
+function pairCityLocations(names = [], codes = [], defaultDepartmentName = '', defaultDepartmentCode = '') {
+  return (names || []).map((name, index) => ({
+    cityName: name,
+    cityCode: codes?.[index] || `${normalizeCorruptedText(name)}-${index}`,
+    departmentName: defaultDepartmentName,
+    departmentCode: defaultDepartmentCode,
+    countryCode: 'CO',
+    displayName: defaultDepartmentName ? `${name}, ${defaultDepartmentName}` : name,
+  }));
 }
 
-function arrayToCsv(value) {
-  return (value || []).join(', ');
+function pairDepartmentLocations(names = [], codes = []) {
+  return (names || []).map((name, index) => ({
+    departmentName: name,
+    departmentCode: codes?.[index] || `${normalizeCorruptedText(name)}-${index}`,
+    countryCode: 'CO',
+    displayName: name,
+  }));
 }
 
 function formatDate(value) {
@@ -59,6 +72,18 @@ function expiringCount(items, days = 45) {
   }).length;
 }
 
+function cityToOption(city, index) {
+  if (!city) return null;
+  return {
+    cityCode: `legacy-${index}-${city}`,
+    cityName: city,
+    departmentCode: '',
+    departmentName: '',
+    countryCode: 'CO',
+    displayName: city,
+  };
+}
+
 export default function ProfessionalProfile() {
   const [form, setForm] = useState(null);
   const [completion, setCompletion] = useState({ percentage: 0, recommendations: [] });
@@ -80,6 +105,16 @@ export default function ProfessionalProfile() {
       gender: base.gender || '',
       city: base.city || p.city || '',
       department: base.department || p.department || '',
+      cityLocation: p.cityCode
+        ? {
+            cityCode: p.cityCode,
+            cityName: p.city || base.city || '',
+            departmentCode: p.departmentCode,
+            departmentName: p.department || base.department || '',
+            countryCode: 'CO',
+            displayName: `${p.city || base.city || ''}, ${p.department || base.department || ''}`,
+          }
+        : null,
       address: base.address || '',
       phone: base.phone || '',
       email: data?.user?.email || '',
@@ -96,8 +131,16 @@ export default function ProfessionalProfile() {
       licenseStatus: p.licenseStatus || 'pending',
       areasExperience: normalizeArray(p.areasExperience),
       servicesOffered: normalizeArray(p.servicesOffered),
-      serviceMunicipalitiesText: arrayToCsv(p.serviceMunicipalities),
-      serviceDepartmentsText: arrayToCsv(p.serviceDepartments),
+      serviceMunicipalityLocations: pairCityLocations(
+        p.serviceMunicipalities,
+        p.serviceMunicipalityCodes,
+        p.department || base.department || '',
+        p.departmentCode || ''
+      ),
+      serviceDepartmentLocations: pairDepartmentLocations(
+        p.serviceDepartments,
+        p.serviceDepartmentCodes
+      ),
       canTravel: !!p.canTravel,
       immediateAvailability: !!p.immediateAvailability,
       availabilityStatus: p.availabilityStatus || 'available',
@@ -130,8 +173,6 @@ export default function ProfessionalProfile() {
           documentNumber: form.documentNumber,
           birthDate: form.birthDate || undefined,
           gender: form.gender || undefined,
-          city: form.city,
-          department: form.department,
           address: form.address,
           phone: form.phone,
           whatsapp: form.whatsapp,
@@ -149,10 +190,9 @@ export default function ProfessionalProfile() {
           licenseStatus: form.licenseStatus,
           areasExperience: normalizeArray(form.areasExperience),
           servicesOffered: normalizeArray(form.servicesOffered),
-          city: form.city,
-          department: form.department,
-          serviceMunicipalities: csvToArray(form.serviceMunicipalitiesText),
-          serviceDepartments: csvToArray(form.serviceDepartmentsText),
+          cityLocation: form.cityLocation,
+          serviceMunicipalityLocations: form.serviceMunicipalityLocations,
+          serviceDepartmentLocations: form.serviceDepartmentLocations,
           canTravel: !!form.canTravel,
           immediateAvailability: !!form.immediateAvailability,
           availabilityStatus: form.availabilityStatus,
@@ -275,8 +315,8 @@ export default function ProfessionalProfile() {
               <h3 className="h6 mb-2">Cobertura</h3>
               <div className="row g-2 small">
                 <div className="col-md-4"><strong>Ciudad principal:</strong> {form.city || 'N/D'}</div>
-                <div className="col-md-4"><strong>Municipios:</strong> {form.serviceMunicipalitiesText || 'N/D'}</div>
-                <div className="col-md-4"><strong>Departamentos:</strong> {form.serviceDepartmentsText || 'N/D'}</div>
+                <div className="col-md-4"><strong>Municipios:</strong> {(form.serviceMunicipalityLocations || []).map((item) => item.cityName).join(', ') || 'N/D'}</div>
+                <div className="col-md-4"><strong>Departamentos:</strong> {(form.serviceDepartmentLocations || []).map((item) => item.departmentName).join(', ') || 'N/D'}</div>
                 <div className="col-md-4"><strong>Acepta viajar:</strong> {form.canTravel ? 'Si' : 'No'}</div>
                 <div className="col-md-4"><strong>Disponibilidad inmediata:</strong> {form.immediateAvailability ? 'Si' : 'No'}</div>
                 <div className="col-md-4"><strong>Estado:</strong> {headerStatusLabel}</div>
@@ -358,8 +398,20 @@ export default function ProfessionalProfile() {
                 <div className="col-md-3"><input className="form-control" placeholder="Numero documento" value={form.documentNumber} onChange={(e) => setForm((p) => ({ ...p, documentNumber: e.target.value }))} /></div>
                 <div className="col-md-3"><input className="form-control" placeholder="Telefono" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} /></div>
                 <div className="col-md-3"><input className="form-control" placeholder="WhatsApp" value={form.whatsapp} onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value }))} /></div>
-                <div className="col-md-3"><input className="form-control" placeholder="Ciudad" value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} /></div>
-                <div className="col-md-3"><input className="form-control" placeholder="Departamento" value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} /></div>
+                <div className="col-md-6">
+                  <LocationAutocomplete
+                    type="city"
+                    label="Ciudad"
+                    placeholder="Selecciona ciudad"
+                    value={form.cityLocation}
+                    onChange={(option) => setForm((p) => ({
+                      ...p,
+                      cityLocation: option,
+                      city: option?.cityName || '',
+                      department: option?.departmentName || '',
+                    }))}
+                  />
+                </div>
                 <div className="col-md-6"><input className="form-control" placeholder="Direccion" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} /></div>
                 <div className="col-12"><textarea className="form-control" rows="2" placeholder="Biografia" value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))} /></div>
               </div>
@@ -418,8 +470,26 @@ export default function ProfessionalProfile() {
             <div className="card card-bemc p-3">
               <h3 className="h6 mb-2">Cobertura y disponibilidad</h3>
               <div className="row g-2">
-                <div className="col-md-6"><input className="form-control" placeholder="Municipios (coma)" value={form.serviceMunicipalitiesText} onChange={(e) => setForm((p) => ({ ...p, serviceMunicipalitiesText: e.target.value }))} /></div>
-                <div className="col-md-6"><input className="form-control" placeholder="Departamentos (coma)" value={form.serviceDepartmentsText} onChange={(e) => setForm((p) => ({ ...p, serviceDepartmentsText: e.target.value }))} /></div>
+                <div className="col-md-6">
+                  <LocationAutocomplete
+                    multiple
+                    type="city"
+                    label="Municipios"
+                    placeholder="Agrega municipios de cobertura"
+                    values={form.serviceMunicipalityLocations}
+                    onChangeMany={(options) => setForm((p) => ({ ...p, serviceMunicipalityLocations: options }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <LocationAutocomplete
+                    multiple
+                    type="department"
+                    label="Departamentos"
+                    placeholder="Agrega departamentos de cobertura"
+                    values={form.serviceDepartmentLocations}
+                    onChangeMany={(options) => setForm((p) => ({ ...p, serviceDepartmentLocations: options }))}
+                  />
+                </div>
                 <div className="col-md-3"><select className="form-select" value={form.availabilityStatus} onChange={(e) => setForm((p) => ({ ...p, availabilityStatus: e.target.value }))}><option value="available">Disponible</option><option value="busy">Ocupado</option><option value="unavailable">No disponible</option></select></div>
                 <div className="col-md-3 form-check ms-2"><input type="checkbox" className="form-check-input" id="canTravel" checked={form.canTravel} onChange={(e) => setForm((p) => ({ ...p, canTravel: e.target.checked }))} /><label className="form-check-label" htmlFor="canTravel">Acepta viajar</label></div>
                 <div className="col-md-3 form-check ms-2"><input type="checkbox" className="form-check-input" id="immediateAvailability" checked={form.immediateAvailability} onChange={(e) => setForm((p) => ({ ...p, immediateAvailability: e.target.checked }))} /><label className="form-check-label" htmlFor="immediateAvailability">Disponibilidad inmediata</label></div>
@@ -436,7 +506,14 @@ export default function ProfessionalProfile() {
                   <div className="col-md-2"><input className="form-control" placeholder="Cargo" value={w.role || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, role: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={w.startDate ? String(w.startDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, startDate: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={w.endDate ? String(w.endDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, endDate: e.target.value } : x) }))} /></div>
-                  <div className="col-md-2"><input className="form-control" placeholder="Ciudad" value={w.city || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, city: e.target.value } : x) }))} /></div>
+                  <div className="col-md-2">
+                    <LocationAutocomplete
+                      type="city"
+                      placeholder="Ciudad"
+                      value={cityToOption(w.city, i)}
+                      onChange={(option) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, city: option?.cityName || '' } : x) }))}
+                    />
+                  </div>
                   <div className="col-md-1"><button type="button" className="btn btn-outline-danger w-100" onClick={() => setForm((p) => ({ ...p, workExperiences: p.workExperiences.filter((_, idx) => idx !== i) }))}>x</button></div>
                   <div className="col-12"><textarea className="form-control" rows="2" placeholder="Funciones" value={w.functions || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, functions: e.target.value } : x) }))} /></div>
                 </div>
@@ -455,7 +532,14 @@ export default function ProfessionalProfile() {
                   <div className="col-md-3"><input className="form-control" placeholder="Institucion" value={ed.institution || ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, institution: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={ed.startDate ? String(ed.startDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, startDate: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={ed.endDate ? String(ed.endDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, endDate: e.target.value } : x) }))} /></div>
-                  <div className="col-md-11"><input className="form-control" placeholder="Ciudad" value={ed.city || ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, city: e.target.value } : x) }))} /></div>
+                  <div className="col-md-11">
+                    <LocationAutocomplete
+                      type="city"
+                      placeholder="Ciudad"
+                      value={cityToOption(ed.city, i + 1000)}
+                      onChange={(option) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, city: option?.cityName || '' } : x) }))}
+                    />
+                  </div>
                   <div className="col-md-1"><button type="button" className="btn btn-outline-danger w-100" onClick={() => setForm((p) => ({ ...p, educationItems: p.educationItems.filter((_, idx) => idx !== i) }))}>x</button></div>
                 </div>
               ))}

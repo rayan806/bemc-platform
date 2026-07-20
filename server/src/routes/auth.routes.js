@@ -20,6 +20,12 @@ import {
   exchangeFacebookCode,
   exchangeGoogleCode,
 } from '../services/oauth.service.js';
+import {
+  resolveCitySelection,
+  resolveCitySelections,
+  resolveDepartmentSelection,
+  resolveDepartmentSelections,
+} from '../services/locationCatalog.service.js';
 
 const router = Router();
 
@@ -139,6 +145,32 @@ router.post(
         }
       }
 
+      let companyCity = null;
+      let professionalCity = null;
+      let professionalCoverageCities = [];
+      let professionalCoverageDepartments = [];
+
+      if (accountType === 'company') {
+        companyCity = resolveCitySelection(req.body.cityLocation || req.body.city);
+        if (!companyCity) {
+          return res.status(400).json({ message: 'Selecciona una ciudad valida de la lista' });
+        }
+      }
+
+      if (accountType === 'professional') {
+        professionalCity = resolveCitySelection(req.body.cityLocation || req.body.city);
+        if (!professionalCity) {
+          return res.status(400).json({ message: 'Selecciona una ciudad base valida de la lista' });
+        }
+
+        professionalCoverageCities = resolveCitySelections(
+          req.body.serviceMunicipalityLocations || req.body.serviceMunicipalities || []
+        );
+        professionalCoverageDepartments = resolveDepartmentSelections(
+          req.body.serviceDepartmentLocations || req.body.serviceDepartments || []
+        );
+      }
+
       const user = await User.create({
         email,
         password,
@@ -151,6 +183,11 @@ router.post(
           phone,
           documentNumber,
           address,
+          city: companyCity?.cityName || professionalCity?.cityName,
+          department: companyCity?.departmentName || professionalCity?.departmentName,
+          cityCode: companyCity?.cityCode || professionalCity?.cityCode,
+          departmentCode: companyCity?.departmentCode || professionalCity?.departmentCode,
+          countryCode: companyCity?.countryCode || professionalCity?.countryCode || 'CO',
           avatarUrl: req.body.avatarUrl,
         },
         professionalProfile:
@@ -165,9 +202,14 @@ router.post(
                 licenses: req.body.licenses || [],
                 studies: req.body.studies || [],
                 specialties: req.body.specialties || [],
-                city: req.body.city,
-                department: req.body.department,
-                serviceMunicipalities: req.body.serviceMunicipalities || [],
+                city: professionalCity.cityName,
+                department: professionalCity.departmentName,
+                cityCode: professionalCity.cityCode,
+                departmentCode: professionalCity.departmentCode,
+                serviceMunicipalities: professionalCoverageCities.map((item) => item.cityName),
+                serviceMunicipalityCodes: professionalCoverageCities.map((item) => item.cityCode),
+                serviceDepartments: professionalCoverageDepartments.map((item) => item.departmentName),
+                serviceDepartmentCodes: professionalCoverageDepartments.map((item) => item.departmentCode),
                 canTravel: !!req.body.canTravel,
                 availabilityStatus: 'available',
               }

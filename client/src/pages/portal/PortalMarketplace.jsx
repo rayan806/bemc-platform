@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import LocationAutocomplete from '../../components/locations/LocationAutocomplete';
 
 const requestStatuses = {
   draft: 'Borrador',
@@ -38,6 +39,17 @@ function parseCsv(text) {
     .split(',')
     .map((v) => v.trim())
     .filter(Boolean);
+}
+
+function pairCityLocations(names = [], codes = [], departmentName = '', departmentCode = '') {
+  return (names || []).map((name, index) => ({
+    cityName: name,
+    cityCode: codes?.[index] || `${name}-${index}`,
+    departmentName,
+    departmentCode,
+    countryCode: 'CO',
+    displayName: departmentName ? `${name}, ${departmentName}` : name,
+  }));
 }
 
 function parseStudies(text) {
@@ -104,9 +116,8 @@ export default function PortalMarketplace() {
     licenseNumber: '',
     licenseExpiryDate: '',
     specialtiesText: '',
-    city: '',
-    department: '',
-    serviceMunicipalitiesText: '',
+    cityLocation: null,
+    serviceMunicipalityLocations: [],
     availabilityStatus: 'available',
     canTravel: false,
     avatarUrl: '',
@@ -127,8 +138,8 @@ export default function PortalMarketplace() {
     contactName: user?.profile?.firstName || '',
     contactPhone: user?.profile?.phone || '',
     contactEmail: user?.email || '',
-    city: '',
-    department: '',
+    cityLocation: null,
+    address: '',
     startDate: '',
     estimatedEndDate: '',
     requiredProfessionalType: '',
@@ -179,9 +190,22 @@ export default function PortalMarketplace() {
           licenseNumber: p.licenseNumber || '',
           licenseExpiryDate: p.licenseExpiryDate ? String(p.licenseExpiryDate).slice(0, 10) : '',
           specialtiesText: (p.specialties || []).join(', '),
-          city: p.city || '',
-          department: p.department || '',
-          serviceMunicipalitiesText: (p.serviceMunicipalities || []).join(', '),
+          cityLocation: p.cityCode
+            ? {
+                cityCode: p.cityCode,
+                cityName: p.city || '',
+                departmentCode: p.departmentCode,
+                departmentName: p.department || '',
+                countryCode: 'CO',
+                displayName: `${p.city || ''}, ${p.department || ''}`,
+              }
+            : null,
+          serviceMunicipalityLocations: pairCityLocations(
+            p.serviceMunicipalities,
+            p.serviceMunicipalityCodes,
+            p.department || '',
+            p.departmentCode || ''
+          ),
           availabilityStatus: p.availabilityStatus || 'available',
           canTravel: !!p.canTravel,
           avatarUrl: baseProfile.avatarUrl || '',
@@ -219,8 +243,13 @@ export default function PortalMarketplace() {
     e.preventDefault();
     setError('');
     try {
+      if (!form.cityLocation) {
+        setError('Selecciona una ciudad valida desde la lista');
+        return;
+      }
       await api.post('/marketplace/requests', {
         ...form,
+        cityLocation: form.cityLocation,
         workersCount: Number(form.workersCount),
         requiredSpecialties: parseCsv(form.requiredSpecialtiesText),
         attachments: (form.attachmentsText || '')
@@ -232,8 +261,8 @@ export default function PortalMarketplace() {
         contactName: user?.profile?.firstName || '',
         contactPhone: user?.profile?.phone || '',
         contactEmail: user?.email || '',
-        city: '',
-        department: '',
+        cityLocation: null,
+        address: '',
         startDate: '',
         estimatedEndDate: '',
         requiredProfessionalType: '',
@@ -288,9 +317,8 @@ export default function PortalMarketplace() {
           licenseNumber: professionalProfile.licenseNumber,
           licenseExpiryDate: professionalProfile.licenseExpiryDate || undefined,
           specialties: parseCsv(professionalProfile.specialtiesText),
-          city: professionalProfile.city,
-          department: professionalProfile.department,
-          serviceMunicipalities: parseCsv(professionalProfile.serviceMunicipalitiesText),
+          cityLocation: professionalProfile.cityLocation,
+          serviceMunicipalityLocations: professionalProfile.serviceMunicipalityLocations,
           canTravel: !!professionalProfile.canTravel,
           availabilityStatus: professionalProfile.availabilityStatus,
           studies: parseStudies(professionalProfile.studiesText),
@@ -473,11 +501,27 @@ export default function PortalMarketplace() {
               <div className="col-md-3"><input className="form-control" placeholder="Licencia principal" value={professionalProfile.licenseNumber} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licenseNumber: e.target.value }))} /></div>
               <div className="col-md-3"><input type="date" className="form-control" value={professionalProfile.licenseExpiryDate} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licenseExpiryDate: e.target.value }))} /></div>
               <div className="col-md-3"><select className="form-select" value={professionalProfile.availabilityStatus} onChange={(e) => setProfessionalProfile((p) => ({ ...p, availabilityStatus: e.target.value }))}><option value="available">Disponible</option><option value="busy">Ocupado</option><option value="unavailable">No disponible</option></select></div>
-              <div className="col-md-4"><input className="form-control" placeholder="Ciudad base" value={professionalProfile.city} onChange={(e) => setProfessionalProfile((p) => ({ ...p, city: e.target.value }))} /></div>
-              <div className="col-md-4"><input className="form-control" placeholder="Departamento" value={professionalProfile.department} onChange={(e) => setProfessionalProfile((p) => ({ ...p, department: e.target.value }))} /></div>
+              <div className="col-md-8">
+                <LocationAutocomplete
+                  type="city"
+                  label="Ciudad base"
+                  placeholder="Selecciona ciudad"
+                  value={professionalProfile.cityLocation}
+                  onChange={(option) => setProfessionalProfile((p) => ({ ...p, cityLocation: option }))}
+                />
+              </div>
               <div className="col-md-4"><input className="form-control" placeholder="URL foto perfil" value={professionalProfile.avatarUrl} onChange={(e) => setProfessionalProfile((p) => ({ ...p, avatarUrl: e.target.value }))} /></div>
               <div className="col-md-6"><input className="form-control" placeholder="Especialidades (coma)" value={professionalProfile.specialtiesText} onChange={(e) => setProfessionalProfile((p) => ({ ...p, specialtiesText: e.target.value }))} /></div>
-              <div className="col-md-6"><input className="form-control" placeholder="Ciudades donde prestas servicio (coma)" value={professionalProfile.serviceMunicipalitiesText} onChange={(e) => setProfessionalProfile((p) => ({ ...p, serviceMunicipalitiesText: e.target.value }))} /></div>
+              <div className="col-md-6">
+                <LocationAutocomplete
+                  multiple
+                  type="city"
+                  label="Municipios de cobertura"
+                  placeholder="Agrega municipios"
+                  values={professionalProfile.serviceMunicipalityLocations}
+                  onChangeMany={(options) => setProfessionalProfile((p) => ({ ...p, serviceMunicipalityLocations: options }))}
+                />
+              </div>
               <div className="col-12"><textarea className="form-control" rows="2" placeholder="Resumen de experiencia" value={professionalProfile.experienceSummary} onChange={(e) => setProfessionalProfile((p) => ({ ...p, experienceSummary: e.target.value }))} /></div>
               <div className="col-12"><textarea className="form-control" rows="3" placeholder="Estudios (linea: titulo|institucion|anio)" value={professionalProfile.studiesText} onChange={(e) => setProfessionalProfile((p) => ({ ...p, studiesText: e.target.value }))} /></div>
               <div className="col-12"><textarea className="form-control" rows="3" placeholder="Licencias (linea: nombre|numero|fecha_yyyy-mm-dd)" value={professionalProfile.licensesText} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licensesText: e.target.value }))} /></div>
@@ -521,8 +565,17 @@ export default function PortalMarketplace() {
               <div className="col-md-4"><input className="form-control" placeholder="Nombre de contacto" value={form.contactName} onChange={(e) => setForm((p) => ({ ...p, contactName: e.target.value }))} required /></div>
               <div className="col-md-4"><input className="form-control" placeholder="Telefono" value={form.contactPhone} onChange={(e) => setForm((p) => ({ ...p, contactPhone: e.target.value }))} required /></div>
               <div className="col-md-4"><input type="email" className="form-control" placeholder="Correo" value={form.contactEmail} onChange={(e) => setForm((p) => ({ ...p, contactEmail: e.target.value }))} required /></div>
-              <div className="col-md-3"><input className="form-control" placeholder="Ciudad" value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} required /></div>
-              <div className="col-md-3"><input className="form-control" placeholder="Departamento" value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} required /></div>
+              <div className="col-md-6">
+                <LocationAutocomplete
+                  type="city"
+                  label="Ciudad"
+                  placeholder="Selecciona ciudad"
+                  value={form.cityLocation}
+                  onChange={(option) => setForm((p) => ({ ...p, cityLocation: option }))}
+                  required
+                />
+              </div>
+              <div className="col-md-3"><input className="form-control" placeholder="Direccion" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} /></div>
               <div className="col-md-3"><input type="date" className="form-control" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} required /></div>
               <div className="col-md-3"><input type="date" className="form-control" value={form.estimatedEndDate} onChange={(e) => setForm((p) => ({ ...p, estimatedEndDate: e.target.value }))} /></div>
               <div className="col-md-4"><input className="form-control" placeholder="Tipo de profesional requerido" value={form.requiredProfessionalType} onChange={(e) => setForm((p) => ({ ...p, requiredProfessionalType: e.target.value }))} required /></div>

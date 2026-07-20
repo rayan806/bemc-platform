@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import LocationAutocomplete from '../../components/locations/LocationAutocomplete';
 
 const PROFESSIONAL_OPTIONS = [
   'SISO por dias',
@@ -62,8 +63,8 @@ export default function CompanyCreateRequest() {
     contactName: user?.profile?.firstName || '',
     contactPhone: user?.profile?.phone || '',
     contactEmail: user?.email || '',
-    city: '',
-    department: user?.profile?.department || '',
+    cityLocation: null,
+    address: '',
     requiredProfessionalType: '',
     minYearsExperience: 0,
     budgetReference: '',
@@ -101,15 +102,19 @@ export default function CompanyCreateRequest() {
     e.preventDefault();
     setMsg('');
     try {
+      if (!form.cityLocation) {
+        setMsg('Selecciona una ciudad valida desde la lista');
+        return;
+      }
       const { startDate, estimatedEndDate } = computeDates();
-      const description = form.description?.trim() || `Busqueda de ${form.requiredProfessionalType} para ${form.city}.`;
+      const description = form.description?.trim() || `Busqueda de ${form.requiredProfessionalType} para ${form.cityLocation.cityName}.`;
 
       await api.post('/marketplace/requests', {
         contactName: form.contactName || user?.profile?.firstName || 'Contacto empresa',
         contactPhone: form.contactPhone || user?.profile?.phone || 'Sin telefono',
         contactEmail: form.contactEmail || user?.email,
-        city: form.city,
-        department: form.department || 'No definido',
+        cityLocation: form.cityLocation,
+        address: form.address,
         startDate,
         estimatedEndDate,
         requiredProfessionalType: form.requiredProfessionalType,
@@ -129,7 +134,8 @@ export default function CompanyCreateRequest() {
       setMsg('Busqueda publicada. Estamos mostrando profesionales compatibles.');
       setForm((p) => ({
         ...p,
-        city: '',
+        cityLocation: null,
+        address: '',
         requiredProfessionalType: '',
         minYearsExperience: 0,
         budgetReference: '',
@@ -179,8 +185,19 @@ export default function CompanyCreateRequest() {
         </div>
 
         <div className="col-md-4">
-          <label className="form-label">Ciudad</label>
-          <input className="form-control" placeholder="Ciudad donde se requiere" required value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} />
+          <LocationAutocomplete
+            type="city"
+            label="Ciudad"
+            placeholder="Ciudad donde se requiere"
+            value={form.cityLocation}
+            onChange={(option) => setForm((p) => ({ ...p, cityLocation: option }))}
+            required
+          />
+        </div>
+
+        <div className="col-md-4">
+          <label className="form-label">Direccion del proyecto</label>
+          <input className="form-control" placeholder="Direccion (texto libre)" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
         </div>
 
         <div className="col-md-4">

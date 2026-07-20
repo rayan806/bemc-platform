@@ -27,6 +27,12 @@ import { ProfessionalDocument, PROFESSIONAL_DOCUMENT_TYPES } from '../models/Pro
 import { Notification } from '../models/Notification.js';
 import { logAudit } from '../utils/audit.js';
 import { findMatchingProfessionals } from '../services/marketplaceMatcher.service.js';
+import {
+  normalizeLocationText,
+  resolveCitySelection,
+  resolveCitySelections,
+  resolveDepartmentSelections,
+} from '../services/locationCatalog.service.js';
 
 const router = Router();
 
@@ -122,7 +128,10 @@ function computeProfileCompletion(user, certificationsCount = 0, documentsCount 
 
 router.get('/professionals/public', async (req, res, next) => {
   try {
-    const city = (req.query.city || '').trim();
+    const cityCode = String(req.query.cityCode || '').trim();
+    const cityText = String(req.query.city || '').trim();
+    const selectedCity = cityCode ? resolveCitySelection({ cityCode }) : resolveCitySelection(cityText);
+    const normalizedCityText = normalizeLocationText(cityText);
     const specialty = (req.query.specialty || '').trim().toLowerCase();
     const type = (req.query.type || '').trim().toLowerCase();
 
@@ -136,12 +145,14 @@ router.get('/professionals/public', async (req, res, next) => {
 
     const filtered = professionals.filter((p) => {
       const prof = p.professionalProfile || {};
-      if (city) {
-        const inMainCity = (prof.city || '').toLowerCase() === city.toLowerCase();
-        const inMunicipality = (prof.serviceMunicipalities || [])
-          .map((m) => (m || '').toLowerCase())
-          .includes(city.toLowerCase());
-        if (!inMainCity && !inMunicipality && !prof.canTravel) return false;
+      if (cityCode || cityText) {
+        const byCode =
+          !!selectedCity &&
+          (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
+        const byText =
+          normalizeLocationText(prof.city) === normalizedCityText ||
+          (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
+        if (!byCode && !byText && !prof.canTravel) return false;
       }
       if (specialty) {
         const specialties = (prof.specialties || []).map((s) => (s || '').toLowerCase());
@@ -255,10 +266,6 @@ router.patch(
         'areasExperience',
         'servicesOffered',
         'specialties',
-        'city',
-        'department',
-        'serviceMunicipalities',
-        'serviceDepartments',
         'canTravel',
         'immediateAvailability',
         'availabilityStatus',
@@ -292,6 +299,58 @@ router.patch(
         if (req.body.profile?.[key] !== undefined) {
           patch[`profile.${key}`] = req.body.profile[key];
         }
+      }
+
+      const citySelection =
+        resolveCitySelection(req.body.professionalProfile?.cityLocation) ||
+        resolveCitySelection(req.body.profile?.cityLocation) ||
+        resolveCitySelection(req.body.professionalProfile?.city) ||
+        resolveCitySelection(req.body.profile?.city);
+
+      if (
+        req.body.professionalProfile?.cityLocation !== undefined ||
+        req.body.profile?.cityLocation !== undefined ||
+        req.body.professionalProfile?.city !== undefined ||
+        req.body.profile?.city !== undefined
+      ) {
+        if (!citySelection) {
+          return res.status(400).json({ message: 'Selecciona una ciudad valida desde la lista' });
+        }
+        patch['professionalProfile.city'] = citySelection.cityName;
+        patch['professionalProfile.department'] = citySelection.departmentName;
+        patch['professionalProfile.cityCode'] = citySelection.cityCode;
+        patch['professionalProfile.departmentCode'] = citySelection.departmentCode;
+        patch['profile.city'] = citySelection.cityName;
+        patch['profile.department'] = citySelection.departmentName;
+        patch['profile.cityCode'] = citySelection.cityCode;
+        patch['profile.departmentCode'] = citySelection.departmentCode;
+        patch['profile.countryCode'] = citySelection.countryCode;
+      }
+
+      if (
+        req.body.professionalProfile?.serviceMunicipalityLocations !== undefined ||
+        req.body.professionalProfile?.serviceMunicipalities !== undefined
+      ) {
+        const municipalities = resolveCitySelections(
+          req.body.professionalProfile?.serviceMunicipalityLocations ||
+            req.body.professionalProfile?.serviceMunicipalities ||
+            []
+        );
+        patch['professionalProfile.serviceMunicipalities'] = municipalities.map((item) => item.cityName);
+        patch['professionalProfile.serviceMunicipalityCodes'] = municipalities.map((item) => item.cityCode);
+      }
+
+      if (
+        req.body.professionalProfile?.serviceDepartmentLocations !== undefined ||
+        req.body.professionalProfile?.serviceDepartments !== undefined
+      ) {
+        const departments = resolveDepartmentSelections(
+          req.body.professionalProfile?.serviceDepartmentLocations ||
+            req.body.professionalProfile?.serviceDepartments ||
+            []
+        );
+        patch['professionalProfile.serviceDepartments'] = departments.map((item) => item.departmentName);
+        patch['professionalProfile.serviceDepartmentCodes'] = departments.map((item) => item.departmentCode);
       }
 
       const user = await User.findByIdAndUpdate(req.user._id, { $set: patch }, { new: true }).populate(
@@ -522,8 +581,7 @@ router.post(
     body('contactName').trim().notEmpty(),
     body('contactPhone').trim().notEmpty(),
     body('contactEmail').isEmail(),
-    body('city').trim().notEmpty(),
-    body('department').trim().notEmpty(),
+    body('cityLocation').isObject(),
     body('startDate').isISO8601(),
     body('requiredProfessionalType').trim().notEmpty(),
     body('workersCount').isInt({ min: 1 }),
@@ -538,6 +596,11 @@ router.post(
       }
       if (!validate(req, res)) return;
 
+      const cityLocation = resolveCitySelection(req.body.cityLocation);
+      if (!cityLocation) {
+        return res.status(400).json({ message: 'Selecciona una ciudad valida desde el autocompletado' });
+      }
+
       const company = req.user.company || req.body.company;
       if (!company) {
         return res.status(400).json({ message: 'Debes tener una empresa asociada' });
@@ -549,8 +612,11 @@ router.post(
         contactName: req.body.contactName,
         contactPhone: req.body.contactPhone,
         contactEmail: req.body.contactEmail,
-        city: req.body.city,
-        department: req.body.department,
+        city: cityLocation.cityName,
+        department: cityLocation.departmentName,
+        cityCode: cityLocation.cityCode,
+        departmentCode: cityLocation.departmentCode,
+        countryCode: cityLocation.countryCode,
         address: req.body.address,
         startDate: req.body.startDate,
         estimatedEndDate: req.body.estimatedEndDate,

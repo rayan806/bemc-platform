@@ -10,12 +10,30 @@ import { User } from '../models/User.js';
 import { ProfessionalCertification } from '../models/ProfessionalCertification.js';
 import { ProfessionalDocument } from '../models/ProfessionalDocument.js';
 import { MarketplaceRating } from '../models/MarketplaceRating.js';
+import {
+  normalizeLocationText,
+  resolveCitySelection,
+  searchLocations,
+} from '../services/locationCatalog.service.js';
 
 const router = Router();
 
+router.get('/locations/search', async (req, res) => {
+  const type = req.query.type === 'department' ? 'department' : 'city';
+  const query = String(req.query.query || '');
+  const departmentCode = req.query.departmentCode ? String(req.query.departmentCode) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : 12;
+
+  const rows = searchLocations({ type, query, departmentCode, limit });
+  res.json(rows);
+});
+
 router.get('/professionals', async (req, res, next) => {
   try {
-    const city = (req.query.city || '').trim().toLowerCase();
+    const cityCode = String(req.query.cityCode || '').trim();
+    const cityText = String(req.query.city || '').trim();
+    const selectedCity = cityCode ? resolveCitySelection({ cityCode }) : resolveCitySelection(cityText);
+    const normalizedCityText = normalizeLocationText(cityText);
     const specialty = (req.query.specialty || '').trim().toLowerCase();
 
     const professionals = await User.find({
@@ -29,10 +47,16 @@ router.get('/professionals', async (req, res, next) => {
 
     const filtered = professionals.filter((p) => {
       const prof = p.professionalProfile || {};
-      if (city) {
-        const inMainCity = (prof.city || '').toLowerCase() === city;
-        const inMunicipality = (prof.serviceMunicipalities || []).map((m) => (m || '').toLowerCase()).includes(city);
-        if (!inMainCity && !inMunicipality && !prof.canTravel) return false;
+      if (cityCode || cityText) {
+        const byCode = !!selectedCity && (
+          prof.cityCode === selectedCity.cityCode ||
+          (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode)
+        );
+        const byText =
+          normalizeLocationText(prof.city) === normalizedCityText ||
+          (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
+        const inCoverage = byCode || byText;
+        if (!inCoverage && !prof.canTravel) return false;
       }
       if (specialty) {
         const specialties = [prof.specialty, ...(prof.specialties || [])].map((s) => (s || '').toLowerCase());
@@ -96,6 +120,7 @@ router.post(
     body('contactName').trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
     body('serviceNeed').trim().notEmpty(),
+    body('cityLocation').optional().isObject(),
     body('workersCount').optional().isInt({ min: 1 }),
   ],
   async (req, res, next) => {
@@ -105,12 +130,24 @@ router.post(
         return res.status(400).json({ message: 'Datos invalidos', errors: errors.array() });
       }
 
+      const selectedCity = req.body.cityLocation
+        ? resolveCitySelection(req.body.cityLocation)
+        : resolveCitySelection(req.body.city);
+
+      if (req.body.cityLocation && !selectedCity) {
+        return res.status(400).json({ message: 'Selecciona una ciudad valida de la lista' });
+      }
+
       const quote = await PublicQuote.create({
         companyName: req.body.companyName,
         contactName: req.body.contactName,
         email: req.body.email,
         phone: req.body.phone,
-        city: req.body.city,
+        city: selectedCity?.cityName || req.body.city,
+        department: selectedCity?.departmentName,
+        cityCode: selectedCity?.cityCode,
+        departmentCode: selectedCity?.departmentCode,
+        countryCode: selectedCity?.countryCode || 'CO',
         serviceNeed: req.body.serviceNeed,
         workersCount: req.body.workersCount,
         message: req.body.message,

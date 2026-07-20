@@ -5,6 +5,10 @@
 
 import { User } from '../models/User.js';
 import { ProfessionalCertification } from '../models/ProfessionalCertification.js';
+import {
+  normalizeLocationText,
+  resolveCitySelection,
+} from './locationCatalog.service.js';
 
 function normalize(text) {
   return (text || '').toString().trim().toLowerCase();
@@ -29,7 +33,8 @@ function hasValidSstLicense(profile) {
 }
 
 export async function findMatchingProfessionals(request) {
-  const city = normalize(request.city);
+  const requestedCity = resolveCitySelection({ cityCode: request.cityCode }) || resolveCitySelection(request.city);
+  const requestedCityText = normalizeLocationText(request.city);
   const requiredType = normalize(request.requiredProfessionalType);
   const requiredService = normalize(request.requiredService || request.requiredProfessionalType);
   const requiredSpecialties = (request.requiredSpecialties || []).map(normalize).filter(Boolean);
@@ -51,9 +56,13 @@ export async function findMatchingProfessionals(request) {
 
   const byCoverage = professionals.filter((pro) => {
     const p = pro.professionalProfile || {};
-    const mainCity = normalize(p.city);
-    const municipalities = (p.serviceMunicipalities || []).map(normalize);
-    return mainCity === city || municipalities.includes(city) || p.canTravel;
+    const byCode =
+      !!requestedCity &&
+      (p.cityCode === requestedCity.cityCode || (p.serviceMunicipalityCodes || []).includes(requestedCity.cityCode));
+    const byText =
+      normalizeLocationText(p.city) === requestedCityText ||
+      (p.serviceMunicipalities || []).map((cityName) => normalizeLocationText(cityName)).includes(requestedCityText);
+    return byCode || byText || p.canTravel;
   });
 
   const byType = byCoverage.filter((pro) => {

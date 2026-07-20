@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import AuthGlassCard from '../components/auth/AuthGlassCard';
 import SocialAuthButtons from '../components/auth/SocialAuthButtons';
 import PasswordInput from '../components/auth/PasswordInput';
+import LocationAutocomplete from '../components/locations/LocationAutocomplete';
 
 // Componente principal de esta vista.
 export default function RegisterPage() {
@@ -27,9 +28,11 @@ export default function RegisterPage() {
     licenseExpiryDate: '',
     avatarUrl: '',
     experienceSummary: '',
-    city: '',
+    cityLocation: null,
+    companyCityLocation: null,
     specialties: '',
-    serviceCities: '',
+    serviceMunicipalityLocations: [],
+    serviceDepartmentLocations: [],
     studiesText: '',
     licensesText: '',
   });
@@ -60,8 +63,16 @@ export default function RegisterPage() {
       setError('Para empresa necesitas razón social y NIT');
       return;
     }
+    if (accountType === 'company' && !form.companyCityLocation) {
+      setError('Selecciona la ciudad de la empresa desde la lista');
+      return;
+    }
     if (accountType === 'professional' && !form.mainProfession.trim()) {
       setError('Para profesional SST indica tu profesion principal');
+      return;
+    }
+    if (accountType === 'professional' && !form.cityLocation) {
+      setError('Selecciona tu ciudad base desde la lista');
       return;
     }
 
@@ -83,6 +94,7 @@ export default function RegisterPage() {
         email: form.email.trim(),
         legalRepresentative: form.firstName.trim(),
       };
+      payload.cityLocation = form.companyCityLocation;
     }
 
     if (accountType === 'professional') {
@@ -93,15 +105,13 @@ export default function RegisterPage() {
       payload.licenseNumber = form.licenseNumber.trim();
       payload.licenseExpiryDate = form.licenseExpiryDate || undefined;
       payload.avatarUrl = form.avatarUrl.trim();
-      payload.city = form.city.trim();
+      payload.cityLocation = form.cityLocation;
       payload.specialties = form.specialties
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-      payload.serviceMunicipalities = form.serviceCities
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+      payload.serviceMunicipalityLocations = form.serviceMunicipalityLocations;
+      payload.serviceDepartmentLocations = form.serviceDepartmentLocations;
       payload.studies = form.studiesText
         .split('\n')
         .map((row) => row.trim())
@@ -234,6 +244,15 @@ export default function RegisterPage() {
                 required
               />
             </div>
+            <div className="auth-field">
+              <LocationAutocomplete
+                type="city"
+                value={form.companyCityLocation}
+                onChange={(option) => setForm((prev) => ({ ...prev, companyCityLocation: option }))}
+                placeholder="Ciudad de la empresa"
+                required
+              />
+            </div>
           </div>
         )}
 
@@ -284,19 +303,30 @@ export default function RegisterPage() {
               />
             </div>
             <div className="auth-field">
-              <input
-                className="auth-input"
+              <LocationAutocomplete
+                type="city"
+                value={form.cityLocation}
+                onChange={(option) => setForm((prev) => ({ ...prev, cityLocation: option }))}
                 placeholder="Ciudad base"
-                value={form.city}
-                onChange={update('city')}
+                required
               />
             </div>
             <div className="auth-field">
-              <input
-                className="auth-input"
-                placeholder="Ciudades donde presta servicio (coma)"
-                value={form.serviceCities}
-                onChange={update('serviceCities')}
+              <LocationAutocomplete
+                multiple
+                type="city"
+                values={form.serviceMunicipalityLocations}
+                onChangeMany={(options) => setForm((prev) => ({ ...prev, serviceMunicipalityLocations: options }))}
+                placeholder="Municipios donde presta servicio"
+              />
+            </div>
+            <div className="auth-field">
+              <LocationAutocomplete
+                multiple
+                type="department"
+                values={form.serviceDepartmentLocations}
+                onChangeMany={(options) => setForm((prev) => ({ ...prev, serviceDepartmentLocations: options }))}
+                placeholder="Departamentos donde presta servicio"
               />
             </div>
             <div className="auth-field">
