@@ -90,31 +90,45 @@ function hasCityCoverage(prof, selectedCity, normalizedCityText) {
   return byCode || byText;
 }
 
-function getCityCoveragePriority(prof, selectedCity, normalizedCityText) {
-  const mode = prof.geographicAvailability || 'city_only';
-  const sameCityByCode =
-    !!selectedCity &&
-    (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
-  const sameCityByText =
-    normalizeLocationText(prof.city) === normalizedCityText ||
-    (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
-  if (sameCityByCode || sameCityByText) {
-    const isBaseCity =
-      (!!selectedCity && prof.cityCode === selectedCity.cityCode) ||
-      normalizeLocationText(prof.city) === normalizedCityText;
-    return isBaseCity ? 1 : 2;
-  }
+function matchesRequestedType(prof, requiredType) {
+  if (!requiredType) return true;
+  const profession = normalize(prof.mainProfession);
+  const mainRole = normalize(prof.mainRole);
+  const services = (prof.servicesOffered || []).map(normalize);
+  const isSstRequired = isSstText(requiredType);
+  const sstMatch = isSstText(profession) || isSstText(mainRole) || services.some((s) => isSstText(s));
+  return (
+    profession.includes(requiredType) ||
+    mainRole.includes(requiredType) ||
+    services.some((s) => s.includes(requiredType) || requiredType.includes(s)) ||
+    (isSstRequired && sstMatch)
+  );
+}
 
-  const byDepartment =
-    !!selectedCity &&
-    (prof.departmentCode === selectedCity.departmentCode ||
-      (prof.serviceDepartmentCodes || []).includes(selectedCity.departmentCode));
-  if (byDepartment) return 2;
+async function findImmediateCityProfessionals(request) {
+  const selectedCity = resolveCitySelection({ cityCode: request.cityCode }) || resolveCitySelection(request.city);
+  const normalizedCityText = normalizeLocationText(request.city || '');
+  if (!selectedCity && !normalizedCityText) return [];
 
-  const nationwide = mode === 'nationwide' || !!prof.canTravel;
-  if (nationwide) return 3;
+  const requiredType = normalize(request.requiredProfessionalType || request.requiredService);
 
-  return 4;
+  const professionals = await User.find({
+    role: 'professional_sst',
+    isActive: true,
+    'professionalProfile.availabilityStatus': 'available',
+  })
+    .select('profile professionalProfile')
+    .lean();
+
+  return professionals.filter((pro) => {
+    const prof = pro.professionalProfile || {};
+    const exactCityByCode = !!selectedCity && prof.cityCode === selectedCity.cityCode;
+    const exactCityByText = normalizeLocationText(prof.city) === normalizedCityText;
+    if (!exactCityByCode && !exactCityByText) return false;
+    if (!hasCityCoverage(prof, selectedCity, normalizedCityText)) return false;
+    if (!matchesRequestedType(prof, requiredType)) return false;
+    return true;
+  });
 }
 
 async function notifyUser(userId, type, title, message, payload = {}) {
@@ -155,7 +169,21 @@ async function notifyCompatibleProfessionals(
   } = {}
 ) {
   const rejectedIds = new Set((request.rejectedProfessionals || []).map((row) => row.toString()));
-  const matches = (await findMatchingProfessionals(request)).filter(
+  const strictMatches = await findMatchingProfessionals(request);
+  const immediateCityMatches = await findImmediateCityProfessionals(request);
+  const uniqueMap = new Map();
+
+  strictMatches.forEach((row) => {
+    uniqueMap.set(row._id.toString(), row);
+  });
+  immediateCityMatches.forEach((row) => {
+    const key = row._id.toString();
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, { ...row, score: Number(row?.professionalProfile?.ratingAvg || 0) });
+    }
+  });
+
+  const matches = Array.from(uniqueMap.values()).filter(
     (row) => !rejectedIds.has(row._id.toString())
   );
   if (!matches.length) return { matched: 0, notified: 0 };
@@ -336,9 +364,6 @@ router.get('/professionals/public', async (req, res, next) => {
     });
 
     const sorted = filtered.sort((a, b) => {
-      const pa = getCityCoveragePriority(a.professionalProfile || {}, selectedCity, normalizedCityText);
-      const pb = getCityCoveragePriority(b.professionalProfile || {}, selectedCity, normalizedCityText);
-      if (pa !== pb) return pa - pb;
       const ra = Number(a.professionalProfile?.ratingAvg || 0);
       const rb = Number(b.professionalProfile?.ratingAvg || 0);
       if (rb !== ra) return rb - ra;

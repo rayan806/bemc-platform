@@ -43,33 +43,6 @@ function hasCoverage(prof, selectedCity, normalizedCityText) {
   return byCode || byText;
 }
 
-function getCoveragePriority(prof, selectedCity, normalizedCityText) {
-  const mode = prof.geographicAvailability || 'city_only';
-  const sameCityByCode =
-    !!selectedCity &&
-    (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
-  const sameCityByText =
-    normalizeLocationText(prof.city) === normalizedCityText ||
-    (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
-  if (sameCityByCode || sameCityByText) {
-    const isBaseCity =
-      (!!selectedCity && prof.cityCode === selectedCity.cityCode) ||
-      normalizeLocationText(prof.city) === normalizedCityText;
-    return isBaseCity ? 1 : 2;
-  }
-
-  const byDepartment =
-    !!selectedCity &&
-    (prof.departmentCode === selectedCity.departmentCode ||
-      (prof.serviceDepartmentCodes || []).includes(selectedCity.departmentCode));
-  if (byDepartment) return 2;
-
-  const nationwide = mode === 'nationwide' || !!prof.canTravel;
-  if (nationwide) return 3;
-
-  return 4;
-}
-
 router.get('/locations/search', async (req, res) => {
   const type = req.query.type === 'department' ? 'department' : 'city';
   const query = String(req.query.query || '');
@@ -154,9 +127,6 @@ router.get('/professionals', async (req, res, next) => {
     });
 
     const sorted = filtered.sort((a, b) => {
-      const pa = getCoveragePriority(a.professionalProfile || {}, selectedCity, normalizedCityText);
-      const pb = getCoveragePriority(b.professionalProfile || {}, selectedCity, normalizedCityText);
-      if (pa !== pb) return pa - pb;
       const ra = Number(a.professionalProfile?.ratingAvg || 0);
       const rb = Number(b.professionalProfile?.ratingAvg || 0);
       if (rb !== ra) return rb - ra;
