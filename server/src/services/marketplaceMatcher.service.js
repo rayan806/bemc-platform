@@ -97,6 +97,28 @@ function hasCoverageForCity(profile, requestedCity, requestedCityText) {
   return sameCityByCode || sameCityByText;
 }
 
+function getGeographicPriority(profile, requestedCity, requestedCityText) {
+  const p = profile || {};
+  const mode = p.geographicAvailability || 'city_only';
+  const nationwide = mode === 'nationwide' || !!p.canTravel;
+  if (nationwide) return 3;
+
+  if (!requestedCity && !requestedCityText) return 1;
+
+  const sameCityByCode =
+    !!requestedCity &&
+    (p.cityCode === requestedCity.cityCode || (p.serviceMunicipalityCodes || []).includes(requestedCity.cityCode));
+  const sameCityByText =
+    normalizeLocationText(p.city) === requestedCityText ||
+    (p.serviceMunicipalities || []).map((name) => normalizeLocationText(name)).includes(requestedCityText);
+
+  if (sameCityByCode || sameCityByText) {
+    return p.cityCode === requestedCity?.cityCode || normalizeLocationText(p.city) === requestedCityText ? 1 : 2;
+  }
+
+  return 4;
+}
+
 export async function findMatchingProfessionals(request) {
   const requestedCity = resolveCitySelection({ cityCode: request.cityCode }) || resolveCitySelection(request.city);
   const requestedCityText = normalizeLocationText(request.city);
@@ -216,6 +238,7 @@ export async function findMatchingProfessionals(request) {
         profile: pro.profile,
         professionalProfile: p,
         certificationsCount: certs.length,
+        geographicPriority: getGeographicPriority(p, requestedCity, requestedCityText),
         geographicMatch:
           p.geographicAvailability === 'nationwide' || p.canTravel
             ? 'nationwide'
@@ -227,6 +250,9 @@ export async function findMatchingProfessionals(request) {
       };
     })
     .sort((a, b) => {
+      if (a.geographicPriority !== b.geographicPriority) {
+        return a.geographicPriority - b.geographicPriority;
+      }
       if (b.score !== a.score) return b.score - a.score;
       return (b.professionalProfile?.completedServicesCount || 0) -
         (a.professionalProfile?.completedServicesCount || 0);

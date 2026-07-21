@@ -71,7 +71,7 @@ export default function CompanyCreateRequest() {
     riskLevel: 'medio',
     budgetReference: '',
     duration: '1_week',
-    requiredAvailability: 'immediate',
+    requiredAvailability: 'this_week',
     specificDate: '',
     requiresSstLicense: true,
     requiresWorkingAtHeights: false,
@@ -146,7 +146,7 @@ export default function CompanyCreateRequest() {
         riskLevel: 'medio',
         budgetReference: '',
         duration: '1_week',
-        requiredAvailability: 'immediate',
+        requiredAvailability: 'this_week',
         specificDate: '',
         requiresSstLicense: true,
         requiresWorkingAtHeights: false,
@@ -227,6 +227,7 @@ export default function CompanyCreateRequest() {
           <select className="form-select" value={form.requiredAvailability} onChange={(e) => setForm((p) => ({ ...p, requiredAvailability: e.target.value }))}>
             {AVAILABILITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
+          <div className="form-text">Usa Inmediata solo si realmente necesitas disponibilidad hoy mismo.</div>
         </div>
 
         {form.requiredAvailability === 'specific_date' && (
