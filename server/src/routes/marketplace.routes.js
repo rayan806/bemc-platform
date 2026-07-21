@@ -1437,8 +1437,6 @@ router.post(
         { $set: { status: 'active' } }
       );
 
-      const matches = await findMatchingProfessionals(assignment.request);
-
       await notifyCompatibleProfessionals(assignment.request, {
         type: 'marketplace_reopened',
         title: 'Solicitud reabierta',
