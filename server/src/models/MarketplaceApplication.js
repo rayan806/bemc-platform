@@ -24,6 +24,7 @@ const marketplaceApplicationSchema = new mongoose.Schema(
     availabilityNote: { type: String, trim: true },
     economicProposal: { type: Number, min: 0, required: true },
     observations: { type: String, trim: true },
+    contractFileUrl: { type: String, trim: true },
     status: {
       type: String,
       enum: MARKETPLACE_APPLICATION_STATUSES,

@@ -4,6 +4,10 @@
  */
 
 import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import multer from 'multer';
 import { body, validationResult } from 'express-validator';
 import { authenticate, isStaff } from '../middleware/auth.js';
 import { User } from '../models/User.js';
@@ -24,6 +28,7 @@ import {
   PROFESSIONAL_CERTIFICATION_TYPES,
 } from '../models/ProfessionalCertification.js';
 import { ProfessionalDocument, PROFESSIONAL_DOCUMENT_TYPES } from '../models/ProfessionalDocument.js';
+import { MarketplaceConversationMessage } from '../models/MarketplaceConversationMessage.js';
 import { Notification } from '../models/Notification.js';
 import { logAudit } from '../utils/audit.js';
 import { findMatchingProfessionals } from '../services/marketplaceMatcher.service.js';
@@ -35,6 +40,29 @@ import {
 } from '../services/locationCatalog.service.js';
 
 const router = Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const contractsUploadDir = path.join(__dirname, '../../uploads/contracts');
+
+fs.mkdirSync(contractsUploadDir, { recursive: true });
+
+const contractUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, contractsUploadDir),
+    filename: (req, file, cb) => {
+      const safeOriginal = String(file.originalname || 'contrato.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      cb(null, `contract-${suffix}-${safeOriginal}`);
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    const isPdf = file.mimetype === 'application/pdf' || String(file.originalname || '').toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      return cb(new Error('Solo se permiten archivos PDF'));
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 router.use(authenticate);
 
@@ -51,6 +79,44 @@ function isProfessional(user) {
 
 function isCompanyClient(user) {
   return user.role === 'client' && !!user.company;
+}
+
+function isOperator(user) {
+  return user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(user.role) || isStaff(user);
+}
+
+function displayNameFromUser(user) {
+  return `${user?.profile?.firstName || ''} ${user?.profile?.lastName || ''}`.trim() || user?.email || 'Usuario';
+}
+
+async function resolveWorkspace(req, requestId, professionalId) {
+  const request = await MarketplaceRequest.findById(requestId).populate('company').populate('createdBy', 'email profile');
+  if (!request) {
+    return { error: { status: 404, message: 'Solicitud no encontrada' } };
+  }
+
+  const professional = await User.findOne({ _id: professionalId, role: 'professional_sst' })
+    .select('email profile professionalProfile')
+    .lean();
+  if (!professional) {
+    return { error: { status: 404, message: 'Profesional no encontrado' } };
+  }
+
+  const application = await MarketplaceApplication.findOne({ request: request._id, professional: professionalId });
+  const assignment = await MarketplaceAssignment.findOne({ request: request._id, professional: professionalId });
+
+  const ownerCompany = request.createdBy?._id?.toString() === req.user._id.toString();
+  const professionalParticipant = req.user.role === 'professional_sst' && req.user._id.toString() === professionalId;
+
+  if (professionalParticipant && !application && !assignment) {
+    return { error: { status: 403, message: 'No tienes acceso a este espacio' } };
+  }
+
+  if (!ownerCompany && !professionalParticipant && !isOperator(req.user)) {
+    return { error: { status: 403, message: 'Sin permisos' } };
+  }
+
+  return { request, professional, application, assignment, ownerCompany, professionalParticipant };
 }
 
 function normalize(value) {
@@ -1273,6 +1339,177 @@ router.get('/requests/:id/applications', async (req, res, next) => {
     next(err);
   }
 });
+
+router.get('/request-professional/:requestId/:professionalId', async (req, res, next) => {
+  try {
+    const { requestId, professionalId } = req.params;
+    const workspace = await resolveWorkspace(req, requestId, professionalId);
+    if (workspace.error) {
+      return res.status(workspace.error.status).json({ message: workspace.error.message });
+    }
+
+    const { request, professional, application, assignment } = workspace;
+    res.json({
+      request: {
+        _id: request._id,
+        city: request.city,
+        department: request.department,
+        requiredProfessionalType: request.requiredProfessionalType,
+        description: request.description,
+        status: request.status,
+        startDate: request.startDate,
+      },
+      company: {
+        legalName: request.company?.legalName || '',
+        contactName: request.contactName,
+        contactEmail: request.contactEmail,
+        contactPhone: request.contactPhone,
+      },
+      professional,
+      application,
+      assignment,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/request-professional/:requestId/:professionalId/contract-file', (req, res, next) => {
+  contractUpload.single('file')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message || 'No se pudo cargar el archivo' });
+    }
+    next();
+  });
+}, async (req, res, next) => {
+  try {
+    const { requestId, professionalId } = req.params;
+    const workspace = await resolveWorkspace(req, requestId, professionalId);
+    if (workspace.error) {
+      return res.status(workspace.error.status).json({ message: workspace.error.message });
+    }
+
+    if (!workspace.ownerCompany && !isOperator(req.user)) {
+      return res.status(403).json({ message: 'Solo la empresa puede subir el contrato' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'Debes seleccionar un archivo PDF' });
+    }
+
+    const contractFileUrl = `/uploads/contracts/${req.file.filename}`;
+    const application = await MarketplaceApplication.findOneAndUpdate(
+      { request: workspace.request._id, professional: professionalId },
+      { $set: { contractFileUrl } },
+      { new: true }
+    );
+
+    if (!application) {
+      return res.status(404).json({ message: 'La postulación no fue encontrada para este profesional' });
+    }
+
+    await notifyUser(
+      professionalId,
+      'contract_uploaded',
+      'Contrato cargado por la empresa',
+      'La empresa cargó un contrato PDF en tu espacio de solicitud.',
+      { requestId: workspace.request._id, professionalId }
+    );
+
+    await logAudit({
+      user: req.user,
+      action: 'upload_marketplace_contract_pdf',
+      entity: 'MarketplaceApplication',
+      entityId: application._id,
+      changes: { contractFileUrl },
+      req,
+    });
+
+    return res.json({ contractFileUrl, application });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/request-professional/:requestId/:professionalId/messages', async (req, res, next) => {
+  try {
+    const { requestId, professionalId } = req.params;
+    const workspace = await resolveWorkspace(req, requestId, professionalId);
+    if (workspace.error) {
+      return res.status(workspace.error.status).json({ message: workspace.error.message });
+    }
+
+    const rows = await MarketplaceConversationMessage.find({
+      request: workspace.request._id,
+      professional: professionalId,
+    })
+      .populate('sender', 'email profile role')
+      .sort({ createdAt: 1 })
+      .limit(200);
+
+    const messages = rows.map((row) => ({
+      _id: row._id,
+      message: row.message,
+      createdAt: row.createdAt,
+      senderId: row.sender?._id,
+      senderRole: row.sender?.role,
+      senderName: displayNameFromUser(row.sender),
+      mine: row.sender?._id?.toString() === req.user._id.toString(),
+    }));
+
+    res.json(messages);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(
+  '/request-professional/:requestId/:professionalId/messages',
+  [body('message').trim().isLength({ min: 1, max: 2000 })],
+  async (req, res, next) => {
+    try {
+      if (!validate(req, res)) return;
+
+      const { requestId, professionalId } = req.params;
+      const workspace = await resolveWorkspace(req, requestId, professionalId);
+      if (workspace.error) {
+        return res.status(workspace.error.status).json({ message: workspace.error.message });
+      }
+
+      const row = await MarketplaceConversationMessage.create({
+        request: workspace.request._id,
+        professional: professionalId,
+        companyUser: workspace.request.createdBy?._id || workspace.request.createdBy,
+        sender: req.user._id,
+        message: req.body.message,
+      });
+
+      const targetUserId = req.user._id.toString() === professionalId
+        ? (workspace.request.createdBy?._id || workspace.request.createdBy)
+        : professionalId;
+
+      await notifyUser(
+        targetUserId,
+        'marketplace_chat_message',
+        'Nuevo mensaje en solicitud',
+        `${displayNameFromUser(req.user)} envió un mensaje en el espacio de coordinación.`,
+        { requestId: workspace.request._id, professionalId }
+      );
+
+      res.status(201).json({
+        _id: row._id,
+        message: row.message,
+        createdAt: row.createdAt,
+        senderId: req.user._id,
+        senderRole: req.user.role,
+        senderName: displayNameFromUser(req.user),
+        mine: true,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 router.post(
   '/requests/:id/select',

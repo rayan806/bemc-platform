@@ -78,9 +78,14 @@ export default function CompanyApplications() {
                           <div className="small text-muted">Ciudad: {m.profile?.city || m.professionalProfile?.city || 'No definida'}</div>
                           <div className="small text-muted">Score de match: {Number(m.score || 0).toFixed(1)}</div>
                           <div className="small text-muted mb-2">Esperando su postulación para poder seleccionarlo.</div>
-                          <Link className="btn btn-sm btn-outline-secondary" to={`/profesionales-sst/${m._id}`} target="_blank" rel="noreferrer">
-                            Ver perfil completo
-                          </Link>
+                          <div className="d-flex gap-2 flex-wrap">
+                            <Link className="btn btn-sm btn-outline-primary" to={`/empresa/espacio/${r._id}/${m._id}`}>
+                              Abrir espacio
+                            </Link>
+                            <Link className="btn btn-sm btn-outline-secondary" to={`/profesionales-sst/${m._id}`} target="_blank" rel="noreferrer">
+                              Ver perfil completo
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -126,6 +131,11 @@ export default function CompanyApplications() {
                     {a.availabilityNote && <p className="small text-muted mb-3">Disponibilidad: {a.availabilityNote}</p>}
 
                     <div className="d-flex flex-wrap gap-2">
+                      {a.professional?._id ? (
+                        <Link className="btn btn-sm btn-outline-primary" to={`/empresa/espacio/${r._id}/${a.professional._id}`}>
+                          Abrir espacio
+                        </Link>
+                      ) : null}
                       {a.professional?._id ? (
                         <Link className="btn btn-sm btn-outline-secondary" to={`/profesionales-sst/${a.professional._id}`} target="_blank" rel="noreferrer">Ver perfil completo</Link>
                       ) : null}
