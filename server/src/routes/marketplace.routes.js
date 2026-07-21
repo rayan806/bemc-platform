@@ -1340,6 +1340,51 @@ router.get('/requests/:id/applications', async (req, res, next) => {
   }
 });
 
+router.get('/company/chat-inbox', async (req, res, next) => {
+  try {
+    if (!isCompanyClient(req.user) && !isOperator(req.user)) {
+      return res.status(403).json({ message: 'Solo empresa puede ver la bandeja de chat' });
+    }
+
+    const rows = await MarketplaceConversationMessage.find({ companyUser: req.user._id })
+      .populate('professional', 'email profile professionalProfile')
+      .populate('request', 'requiredProfessionalType city status')
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+
+    const map = new Map();
+    for (const row of rows) {
+      const professionalId = row.professional?._id?.toString();
+      const requestId = row.request?._id?.toString();
+      if (!professionalId || !requestId) continue;
+
+      const key = `${requestId}:${professionalId}`;
+      if (map.has(key)) continue;
+
+      const profile = row.professional?.profile || {};
+      const professionalProfile = row.professional?.professionalProfile || {};
+      map.set(key, {
+        requestId,
+        professionalId,
+        professionalName: displayNameFromUser(row.professional),
+        professionalEmail: row.professional?.email || '',
+        professionalType: professionalProfile.mainProfession || professionalProfile.mainRole || 'Profesional SST',
+        professionalCity: profile.city || professionalProfile.city || '',
+        requestTitle: row.request?.requiredProfessionalType || 'Solicitud SST',
+        requestCity: row.request?.city || '',
+        requestStatus: row.request?.status || '',
+        lastMessage: row.message,
+        lastMessageAt: row.createdAt,
+      });
+    }
+
+    res.json(Array.from(map.values()));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/request-professional/:requestId/:professionalId', async (req, res, next) => {
   try {
     const { requestId, professionalId } = req.params;

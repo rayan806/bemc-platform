@@ -17,6 +17,7 @@ const secondaryNavItems = [
   { to: '/empresa', label: 'Resumen', icon: 'bi-speedometer2', end: true },
   { to: '/empresa/solicitudes', label: 'Solicitudes', icon: 'bi-card-list' },
   { to: '/empresa/postulaciones', label: 'Postulaciones', icon: 'bi-people' },
+  { to: '/empresa/chat', label: 'Chat', icon: 'bi-chat-dots' },
   { to: '/empresa/historial', label: 'Historial', icon: 'bi-clock-history' },
 ];
 
