@@ -65,7 +65,11 @@ export async function findMatchingProfessionals(request) {
     return byCode || byText || p.canTravel;
   });
 
-  const byType = byCoverage.filter((pro) => {
+  // Si por cobertura no hay nada (datos incompletos o ciudad no cubierta),
+  // se abre el universo a disponibles para evitar listas vacias.
+  const baseCandidates = byCoverage.length > 0 ? byCoverage : professionals;
+
+  const typeMatches = baseCandidates.filter((pro) => {
     const p = pro.professionalProfile || {};
     const profession = normalize(p.mainProfession);
     const mainRole = normalize(p.mainRole);
@@ -78,25 +82,36 @@ export async function findMatchingProfessionals(request) {
     );
   });
 
-  const byLicense = byType.filter((pro) => hasValidSstLicense(pro.professionalProfile));
+  const byType = requiredType && typeMatches.length > 0 ? typeMatches : baseCandidates;
 
-  const bySpecialty = byLicense.filter((pro) => {
-    if (!requiredSpecialties.length) return true;
+  const specialtyMatches = byType.filter((pro) => {
+    if (!requiredSpecialties.length) return false;
     const p = pro.professionalProfile || {};
     const specialties = (p.specialties || []).map(normalize);
-    return requiredSpecialties.every((s) => specialties.includes(s));
+    return requiredSpecialties.some((requested) =>
+      specialties.some((have) => have.includes(requested) || requested.includes(have))
+    );
   });
 
-  const byExperience = bySpecialty.filter((pro) => {
-    if (!minYearsExperience) return true;
+  const bySpecialty = requiredSpecialties.length && specialtyMatches.length > 0 ? specialtyMatches : byType;
+
+  const experienceMatches = bySpecialty.filter((pro) => {
+    if (!minYearsExperience) return false;
     const years = Number(pro.professionalProfile?.yearsExperience || 0);
     return years >= minYearsExperience;
   });
 
-  const byAvailability = byExperience.filter((pro) => {
-    if (requiredAvailability !== 'immediate' && !request.requiresImmediateAvailability) return true;
+  const byExperience = minYearsExperience > 0 && experienceMatches.length > 0 ? experienceMatches : bySpecialty;
+
+  const immediateMatches = byExperience.filter((pro) => {
+    if (requiredAvailability !== 'immediate' && !request.requiresImmediateAvailability) return false;
     return !!pro.professionalProfile?.immediateAvailability;
   });
+
+  const byAvailability =
+    (requiredAvailability === 'immediate' || request.requiresImmediateAvailability) && immediateMatches.length > 0
+      ? immediateMatches
+      : byExperience;
 
   const ids = byAvailability.map((p) => p._id);
   const certifications = await ProfessionalCertification.find({ professional: { $in: ids } })
@@ -120,13 +135,36 @@ export async function findMatchingProfessionals(request) {
       if (request.requiresWorkingAtHeights && !hasHeights) return null;
       if (request.requiresConfinedSpaces && !hasConfined) return null;
 
+      // Puntaje compuesto para priorizar coincidencia, sin eliminar candidatos utiles.
+      let score = Number(p.ratingAvg || 0);
+      if (requiredType) {
+        const profession = normalize(p.mainProfession);
+        const mainRole = normalize(p.mainRole);
+        const services = (p.servicesOffered || []).map(normalize);
+        if (profession.includes(requiredType) || mainRole.includes(requiredType)) score += 2;
+        if (services.some((s) => s.includes(requiredService) || requiredService.includes(s))) score += 1.5;
+      }
+      if (requiredSpecialties.length > 0) {
+        const specialties = (p.specialties || []).map(normalize);
+        const specialtyHits = requiredSpecialties.filter((requested) =>
+          specialties.some((have) => have.includes(requested) || requested.includes(have))
+        ).length;
+        score += specialtyHits;
+      }
+      if (minYearsExperience > 0) {
+        const years = Number(p.yearsExperience || 0);
+        if (years >= minYearsExperience) score += 1;
+      }
+      if (hasValidSstLicense(p)) score += 1;
+      if (p.immediateAvailability) score += 0.5;
+
       return {
         _id: pro._id,
         email: pro.email,
         profile: pro.profile,
         professionalProfile: p,
         certificationsCount: certs.length,
-        score: Number(p.ratingAvg || 0),
+        score,
       };
     })
     .filter(Boolean)

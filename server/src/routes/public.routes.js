@@ -59,7 +59,9 @@ router.get('/professionals', async (req, res, next) => {
         if (!inCoverage && !prof.canTravel) return false;
       }
       if (specialty) {
-        const specialties = [prof.specialty, ...(prof.specialties || [])].map((s) => (s || '').toLowerCase());
+        const specialties = [prof.specialty, ...(prof.specialties || []), ...(prof.servicesOffered || [])]
+          .map((s) => (s || '').toLowerCase())
+          .filter(Boolean);
         if (!specialties.some((s) => s.includes(specialty) || specialty.includes(s))) return false;
       }
       return true;

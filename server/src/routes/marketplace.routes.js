@@ -155,13 +155,22 @@ router.get('/professionals/public', async (req, res, next) => {
         if (!byCode && !byText && !prof.canTravel) return false;
       }
       if (specialty) {
-        const specialties = (prof.specialties || []).map((s) => (s || '').toLowerCase());
-        if (!specialties.includes(specialty)) return false;
+        const specialties = [prof.specialty, ...(prof.specialties || []), ...(prof.servicesOffered || [])]
+          .map((s) => (s || '').toLowerCase())
+          .filter(Boolean);
+        if (!specialties.some((s) => s.includes(specialty) || specialty.includes(s))) return false;
       }
       if (type) {
         const profession = (prof.mainProfession || '').toLowerCase();
         const mainRole = (prof.mainRole || '').toLowerCase();
-        if (!profession.includes(type) && !mainRole.includes(type)) return false;
+        const services = (prof.servicesOffered || []).map((s) => (s || '').toLowerCase());
+        if (
+          !profession.includes(type) &&
+          !mainRole.includes(type) &&
+          !services.some((s) => s.includes(type) || type.includes(s))
+        ) {
+          return false;
+        }
       }
       return true;
     });
