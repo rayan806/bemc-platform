@@ -26,6 +26,7 @@ export default function ProfessionalDashboard() {
   const [assignments, setAssignments] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [me, setMe] = useState({ certifications: [], documents: [] });
+  const POLL_MS = 5000;
 
   const loadNotifications = () => api.get('/notifications').then((n) => setNotifications(n.data || []));
 
@@ -53,7 +54,7 @@ export default function ProfessionalDashboard() {
   useEffect(() => {
     const interval = setInterval(() => {
       loadNotifications();
-    }, 15000);
+    }, POLL_MS);
     return () => clearInterval(interval);
   }, []);
 

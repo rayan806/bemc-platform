@@ -28,6 +28,7 @@ function formatRelative(dateValue) {
 export default function NotificationsMenu() {
   const navigate = useNavigate();
   const { user, isProfessional } = useAuth();
+  const POLL_MS = 5000;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
@@ -50,8 +51,24 @@ export default function NotificationsMenu() {
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(() => loadNotifications(true), 15000);
+    const interval = setInterval(() => loadNotifications(true), POLL_MS);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const handleFocus = () => loadNotifications(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadNotifications(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   useEffect(() => {
@@ -177,11 +194,18 @@ export default function NotificationsMenu() {
               <div className="small text-muted">No tienes notificaciones.</div>
             ) : (
               items.slice(0, 12).map((n) => (
-                <button
+                <div
                   key={n._id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   className={`notif-item ${n.readAt ? 'is-read' : 'is-unread'} text-start w-100 border-0 bg-transparent`}
                   onClick={() => openNotification(n)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openNotification(n);
+                    }
+                  }}
                 >
                   <div className="notif-item__top">
                     <span className="notif-item__title">{n.title}</span>
@@ -201,7 +225,7 @@ export default function NotificationsMenu() {
                       Marcar como leida
                     </button>
                   )}
-                </button>
+                </div>
               ))
             )}
           </div>

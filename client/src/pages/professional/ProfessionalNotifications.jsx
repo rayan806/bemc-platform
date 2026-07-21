@@ -3,12 +3,13 @@ import api from '../../api/client';
 
 export default function ProfessionalNotifications() {
   const [rows, setRows] = useState([]);
+  const POLL_MS = 5000;
 
   const load = () => api.get('/notifications').then((r) => setRows(r.data || []));
 
   useEffect(() => {
     load();
-    const interval = setInterval(() => load(), 15000);
+    const interval = setInterval(() => load(), POLL_MS);
     return () => clearInterval(interval);
   }, []);
 
