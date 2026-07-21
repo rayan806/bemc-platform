@@ -1002,6 +1002,73 @@ router.get('/requests/:id', async (req, res, next) => {
   }
 });
 
+router.post('/requests/:id/republish', async (req, res, next) => {
+  try {
+    const source = await MarketplaceRequest.findById(req.params.id);
+    if (!source) return res.status(404).json({ message: 'Solicitud no encontrada' });
+
+    const isOwner = source.createdBy.toString() === req.user._id.toString();
+    const isOperator = req.user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role);
+    if (!isOwner && !isOperator) {
+      return res.status(403).json({ message: 'Sin permisos' });
+    }
+
+    const republished = await MarketplaceRequest.create({
+      company: source.company,
+      createdBy: source.createdBy,
+      contactName: source.contactName,
+      contactPhone: source.contactPhone,
+      contactEmail: source.contactEmail,
+      city: source.city,
+      department: source.department,
+      cityCode: source.cityCode,
+      departmentCode: source.departmentCode,
+      countryCode: source.countryCode || 'CO',
+      address: source.address,
+      startDate: source.startDate,
+      estimatedEndDate: source.estimatedEndDate,
+      requiredProfessionalType: source.requiredProfessionalType,
+      requiredService: source.requiredService,
+      minYearsExperience: source.minYearsExperience,
+      minimumRating: source.minimumRating,
+      minimumCompletedServices: source.minimumCompletedServices,
+      availableFromDate: source.availableFromDate,
+      workersCount: source.workersCount,
+      riskLevel: source.riskLevel,
+      schedule: source.schedule,
+      requiresSstLicense: source.requiresSstLicense,
+      requiresWorkingAtHeights: source.requiresWorkingAtHeights,
+      requiresConfinedSpaces: source.requiresConfinedSpaces,
+      requiresImmediateAvailability: source.requiresImmediateAvailability,
+      requiredAvailability: source.requiredAvailability,
+      budgetReference: source.budgetReference,
+      requiredSpecialties: source.requiredSpecialties || [],
+      description: source.description,
+      attachments: source.attachments || [],
+      status: 'published',
+    });
+
+    await notifyCompatibleProfessionals(republished, {
+      type: 'marketplace_match',
+      title: 'Nueva solicitud compatible',
+      message: buildProfessionalMatchMessage(republished),
+    });
+
+    await logAudit({
+      user: req.user,
+      action: 'republish_marketplace_request',
+      entity: 'MarketplaceRequest',
+      entityId: republished._id,
+      changes: { sourceRequestId: source._id },
+      req,
+    });
+
+    res.status(201).json(republished);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.patch(
   '/requests/:id/status',
   [body('status').isIn(MARKETPLACE_REQUEST_STATUSES)],
