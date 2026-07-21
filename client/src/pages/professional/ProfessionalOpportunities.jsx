@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 
@@ -17,6 +17,15 @@ export default function ProfessionalOpportunities() {
 
   const load = () => api.get('/marketplace/opportunities').then((r) => setRows(r.data || []));
 
+  const orderedRows = useMemo(() => {
+    if (!highlightedRequestId) return rows;
+    return [...rows].sort((a, b) => {
+      if (a._id === highlightedRequestId) return -1;
+      if (b._id === highlightedRequestId) return 1;
+      return 0;
+    });
+  }, [rows, highlightedRequestId]);
+
   useEffect(() => {
     load();
   }, []);
@@ -33,17 +42,22 @@ export default function ProfessionalOpportunities() {
     }));
   };
 
-  const apply = async (id) => {
-    const form = forms[id] || {};
-    if (!form.economicProposal) return;
-    setBusyId(id);
+  const apply = async (request) => {
+    const form = forms[request._id] || {};
+    const fallbackProposal = Number(request.budgetReference || 0);
+    const economicProposal = Number(form.economicProposal || fallbackProposal);
+
+    setBusyId(request._id);
     try {
-      await api.post(`/marketplace/requests/${id}/applications`, {
-        economicProposal: Number(form.economicProposal),
-        availabilityNote: form.availabilityNote,
-        observations: form.observations,
+      await api.post(`/marketplace/requests/${request._id}/applications`, {
+        economicProposal,
+        availabilityNote: form.availabilityNote || 'Disponible para iniciar según solicitud.',
+        observations: form.observations || 'Postulación enviada desde notificación.',
       });
-      setForms((prev) => ({ ...prev, [id]: { economicProposal: '', availabilityNote: '', observations: '' } }));
+      setForms((prev) => ({
+        ...prev,
+        [request._id]: { economicProposal: '', availabilityNote: '', observations: '' },
+      }));
       load();
     } finally {
       setBusyId('');
@@ -63,8 +77,14 @@ export default function ProfessionalOpportunities() {
   return (
     <div>
       <h2 className="h4 mb-3">Solicitudes disponibles</h2>
+      {highlightedRequestId && (
+        <div className="alert alert-info py-2">
+          Estás viendo una solicitud abierta desde tu notificación. Puedes decidir ahora mismo:
+          <strong> Aceptar</strong> o <strong>Rechazar</strong>.
+        </div>
+      )}
       <div className="d-grid gap-3">
-        {rows.map((r) => {
+        {orderedRows.map((r) => {
           const form = forms[r._id] || {};
           const highlighted = highlightedRequestId === r._id;
 
@@ -94,9 +114,18 @@ export default function ProfessionalOpportunities() {
 
               <p className="small mb-3">{r.description}</p>
 
+              <div className="d-flex flex-wrap gap-2 mb-3">
+                <button className="btn btn-sm btn-bemc" disabled={busyId === r._id} onClick={() => apply(r)}>
+                  Aceptar
+                </button>
+                <button className="btn btn-sm btn-outline-secondary" disabled={busyId === r._id} onClick={() => rejectOpportunity(r._id)}>
+                  Rechazar
+                </button>
+              </div>
+
               <div className="row g-2 mb-3">
                 <div className="col-md-4">
-                  <label className="form-label small">Valor de tu propuesta</label>
+                  <label className="form-label small">Valor de tu propuesta (opcional)</label>
                   <input
                     type="number"
                     min="0"
@@ -126,15 +155,6 @@ export default function ProfessionalOpportunities() {
                     placeholder="Comentarios adicionales"
                   />
                 </div>
-              </div>
-
-              <div className="d-flex flex-wrap gap-2">
-                <button className="btn btn-sm btn-bemc" disabled={busyId === r._id || !form.economicProposal} onClick={() => apply(r._id)}>
-                  Aceptar y postularme
-                </button>
-                <button className="btn btn-sm btn-outline-secondary" disabled={busyId === r._id} onClick={() => rejectOpportunity(r._id)}>
-                  Rechazar oportunidad
-                </button>
               </div>
             </div>
           );
