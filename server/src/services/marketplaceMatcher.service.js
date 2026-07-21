@@ -101,7 +101,8 @@ export async function findMatchingProfessionals(request) {
     );
   });
 
-  const byType = requiredType && typeMatches.length > 0 ? typeMatches : baseCandidates;
+  const typeMatchIds = new Set(typeMatches.map((pro) => pro._id.toString()));
+  const byType = baseCandidates;
 
   const specialtyMatches = byType.filter((pro) => {
     if (!requiredSpecialties.length) return false;
@@ -156,13 +157,7 @@ export async function findMatchingProfessionals(request) {
 
       // Puntaje compuesto para priorizar coincidencia, sin eliminar candidatos utiles.
       let score = Number(p.ratingAvg || 0);
-      if (requiredType) {
-        const profession = normalize(p.mainProfession);
-        const mainRole = normalize(p.mainRole);
-        const services = (p.servicesOffered || []).map(normalize);
-        if (profession.includes(requiredType) || mainRole.includes(requiredType)) score += 2;
-        if (services.some((s) => s.includes(requiredService) || requiredService.includes(s))) score += 1.5;
-      }
+      if (requiredType && typeMatchIds.has(pro._id.toString())) score += 2;
       if (requiredSpecialties.length > 0) {
         const specialties = (p.specialties || []).map(normalize);
         const specialtyHits = requiredSpecialties.filter((requested) =>
