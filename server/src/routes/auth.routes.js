@@ -210,6 +210,8 @@ router.post(
                 serviceMunicipalityCodes: professionalCoverageCities.map((item) => item.cityCode),
                 serviceDepartments: professionalCoverageDepartments.map((item) => item.departmentName),
                 serviceDepartmentCodes: professionalCoverageDepartments.map((item) => item.departmentCode),
+                geographicAvailability:
+                  req.body.geographicAvailability || (req.body.canTravel ? 'nationwide' : 'city_only'),
                 canTravel: !!req.body.canTravel,
                 availabilityStatus: 'available',
               }

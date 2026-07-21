@@ -5,6 +5,13 @@ import LocationAutocomplete from '../../components/locations/LocationAutocomplet
 const areasOptions = ['Construccion', 'Industria', 'Mineria', 'Petroleo', 'Energia', 'Manufactura', 'Transporte', 'Salud', 'Educacion', 'Agroindustria', 'Otras'];
 const servicesOptions = ['SISO por dias', 'SISO tiempo completo', 'Inspector SST', 'Coordinador de Trabajo en Alturas', 'Auditor SG-SST', 'Capacitaciones', 'Investigacion de accidentes', 'Elaboracion de documentos SG-SST', 'Inspecciones', 'Consultoria', 'Otros'];
 const expectedCertificationTypes = ['licencia_sst', 'coordinador_alturas', 'curso_50h', 'curso_20h', 'espacios_confinados', 'primeros_auxilios', 'otra'];
+const geographicAvailabilityOptions = [
+  { value: 'city_only', label: 'Solo en mi ciudad' },
+  { value: 'city_nearby', label: 'En mi ciudad y municipios cercanos' },
+  { value: 'department', label: 'En todo mi departamento' },
+  { value: 'multi_department', label: 'En varios departamentos' },
+  { value: 'nationwide', label: 'En cualquier lugar de Colombia' },
+];
 
 const textFixes = {
   'Construcci�n': 'Construccion',
@@ -84,6 +91,10 @@ function cityToOption(city, index) {
   };
 }
 
+function geographicLabel(value) {
+  return geographicAvailabilityOptions.find((opt) => opt.value === value)?.label || 'Solo en mi ciudad';
+}
+
 export default function ProfessionalProfile() {
   const [form, setForm] = useState(null);
   const [completion, setCompletion] = useState({ percentage: 0, recommendations: [] });
@@ -141,6 +152,7 @@ export default function ProfessionalProfile() {
         p.serviceDepartments,
         p.serviceDepartmentCodes
       ),
+      geographicAvailability: p.geographicAvailability || (p.canTravel ? 'nationwide' : 'city_only'),
       canTravel: !!p.canTravel,
       immediateAvailability: !!p.immediateAvailability,
       availabilityStatus: p.availabilityStatus || 'available',
@@ -193,7 +205,8 @@ export default function ProfessionalProfile() {
           cityLocation: form.cityLocation,
           serviceMunicipalityLocations: form.serviceMunicipalityLocations,
           serviceDepartmentLocations: form.serviceDepartmentLocations,
-          canTravel: !!form.canTravel,
+          geographicAvailability: form.geographicAvailability,
+          canTravel: form.geographicAvailability === 'nationwide' ? true : !!form.canTravel,
           immediateAvailability: !!form.immediateAvailability,
           availabilityStatus: form.availabilityStatus,
           workExperiences: form.workExperiences,
@@ -317,6 +330,7 @@ export default function ProfessionalProfile() {
                 <div className="col-md-4"><strong>Ciudad principal:</strong> {form.city || 'N/D'}</div>
                 <div className="col-md-4"><strong>Municipios:</strong> {(form.serviceMunicipalityLocations || []).map((item) => item.cityName).join(', ') || 'N/D'}</div>
                 <div className="col-md-4"><strong>Departamentos:</strong> {(form.serviceDepartmentLocations || []).map((item) => item.departmentName).join(', ') || 'N/D'}</div>
+                <div className="col-md-4"><strong>Disponibilidad geografica:</strong> {geographicLabel(form.geographicAvailability)}</div>
                 <div className="col-md-4"><strong>Acepta viajar:</strong> {form.canTravel ? 'Si' : 'No'}</div>
                 <div className="col-md-4"><strong>Disponibilidad inmediata:</strong> {form.immediateAvailability ? 'Si' : 'No'}</div>
                 <div className="col-md-4"><strong>Estado:</strong> {headerStatusLabel}</div>
@@ -471,6 +485,18 @@ export default function ProfessionalProfile() {
               <h3 className="h6 mb-2">Cobertura y disponibilidad</h3>
               <div className="row g-2">
                 <div className="col-md-6">
+                  <label className="form-label">Disponibilidad geografica</label>
+                  <select
+                    className="form-select"
+                    value={form.geographicAvailability}
+                    onChange={(e) => setForm((p) => ({ ...p, geographicAvailability: e.target.value, canTravel: e.target.value === 'nationwide' ? true : p.canTravel }))}
+                  >
+                    {geographicAvailabilityOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-6">
                   <LocationAutocomplete
                     multiple
                     type="city"
@@ -478,6 +504,7 @@ export default function ProfessionalProfile() {
                     placeholder="Agrega municipios de cobertura"
                     values={form.serviceMunicipalityLocations}
                     onChangeMany={(options) => setForm((p) => ({ ...p, serviceMunicipalityLocations: options }))}
+                    disabled={form.geographicAvailability === 'nationwide' || form.geographicAvailability === 'city_only' || form.geographicAvailability === 'department'}
                   />
                 </div>
                 <div className="col-md-6">
@@ -488,10 +515,11 @@ export default function ProfessionalProfile() {
                     placeholder="Agrega departamentos de cobertura"
                     values={form.serviceDepartmentLocations}
                     onChangeMany={(options) => setForm((p) => ({ ...p, serviceDepartmentLocations: options }))}
+                    disabled={form.geographicAvailability !== 'multi_department'}
                   />
                 </div>
                 <div className="col-md-3"><select className="form-select" value={form.availabilityStatus} onChange={(e) => setForm((p) => ({ ...p, availabilityStatus: e.target.value }))}><option value="available">Disponible</option><option value="busy">Ocupado</option><option value="unavailable">No disponible</option></select></div>
-                <div className="col-md-3 form-check ms-2"><input type="checkbox" className="form-check-input" id="canTravel" checked={form.canTravel} onChange={(e) => setForm((p) => ({ ...p, canTravel: e.target.checked }))} /><label className="form-check-label" htmlFor="canTravel">Acepta viajar</label></div>
+                <div className="col-md-3 form-check ms-2"><input type="checkbox" className="form-check-input" id="canTravel" checked={form.canTravel} disabled={form.geographicAvailability === 'nationwide'} onChange={(e) => setForm((p) => ({ ...p, canTravel: e.target.checked }))} /><label className="form-check-label" htmlFor="canTravel">Acepta viajar</label></div>
                 <div className="col-md-3 form-check ms-2"><input type="checkbox" className="form-check-input" id="immediateAvailability" checked={form.immediateAvailability} onChange={(e) => setForm((p) => ({ ...p, immediateAvailability: e.target.checked }))} /><label className="form-check-label" htmlFor="immediateAvailability">Disponibilidad inmediata</label></div>
               </div>
             </div>

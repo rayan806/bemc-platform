@@ -71,6 +71,7 @@ export default function CompanyCreateRequest() {
     duration: '1_week',
     requiredAvailability: 'immediate',
     specificDate: '',
+    requiresSstLicense: true,
     requiresWorkingAtHeights: false,
     requiresConfinedSpaces: false,
     description: '',
@@ -123,6 +124,7 @@ export default function CompanyCreateRequest() {
         workersCount: 1,
         riskLevel: 'medio',
         schedule: durationLabel,
+        requiresSstLicense: !!form.requiresSstLicense,
         requiresWorkingAtHeights: form.requiresWorkingAtHeights,
         requiresConfinedSpaces: form.requiresConfinedSpaces,
         requiresImmediateAvailability: form.requiredAvailability === 'immediate',
@@ -142,6 +144,7 @@ export default function CompanyCreateRequest() {
         duration: '1_week',
         requiredAvailability: 'immediate',
         specificDate: '',
+        requiresSstLicense: true,
         requiresWorkingAtHeights: false,
         requiresConfinedSpaces: false,
         description: '',
@@ -213,6 +216,14 @@ export default function CompanyCreateRequest() {
             <input type="date" className="form-control" required value={form.specificDate} onChange={(e) => setForm((p) => ({ ...p, specificDate: e.target.value }))} />
           </div>
         )}
+
+        <div className="col-md-4">
+          <label className="form-label">Requiere licencia SST vigente</label>
+          <select className="form-select" value={form.requiresSstLicense ? 'yes' : 'no'} onChange={(e) => setForm((p) => ({ ...p, requiresSstLicense: e.target.value === 'yes' }))}>
+            <option value="yes">Si</option>
+            <option value="no">No</option>
+          </select>
+        </div>
 
         <div className="col-md-4">
           <label className="form-label">Trabajo en alturas</label>

@@ -117,6 +117,11 @@ const userSchema = new mongoose.Schema(
       serviceDepartments: [{ type: String, trim: true }],
       serviceMunicipalityCodes: [{ type: String, trim: true }],
       serviceDepartmentCodes: [{ type: String, trim: true }],
+      geographicAvailability: {
+        type: String,
+        enum: ['city_only', 'city_nearby', 'department', 'multi_department', 'nationwide'],
+        default: 'city_only',
+      },
       canTravel: { type: Boolean, default: false },
       immediateAvailability: { type: Boolean, default: false },
       availabilityStatus: {

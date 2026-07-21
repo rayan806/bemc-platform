@@ -53,6 +53,36 @@ function isCompanyClient(user) {
   return user.role === 'client' && !!user.company;
 }
 
+function normalize(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isSstText(value) {
+  const text = normalize(value);
+  return text.includes('sst') || text.includes('seguridad y salud en el trabajo') || text.includes('salud ocupacional');
+}
+
+function hasCityCoverage(prof, selectedCity, normalizedCityText) {
+  const mode = prof.geographicAvailability || 'city_only';
+  const nationwide = mode === 'nationwide' || !!prof.canTravel;
+  if (nationwide) return true;
+
+  const byCode =
+    !!selectedCity &&
+    (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
+  const byText =
+    normalizeLocationText(prof.city) === normalizedCityText ||
+    (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
+  const byDepartment =
+    !!selectedCity &&
+    (prof.departmentCode === selectedCity.departmentCode ||
+      (prof.serviceDepartmentCodes || []).includes(selectedCity.departmentCode));
+
+  if (mode === 'city_only' || mode === 'city_nearby') return byCode || byText;
+  if (mode === 'department' || mode === 'multi_department') return byDepartment || byCode || byText;
+  return byCode || byText;
+}
+
 async function notifyUser(userId, type, title, message, payload = {}) {
   await Notification.create({ user: userId, type, title, message, payload, channel: 'in_app' });
 }
@@ -132,13 +162,19 @@ router.get('/professionals/public', async (req, res, next) => {
     const cityText = String(req.query.city || '').trim();
     const selectedCity = cityCode ? resolveCitySelection({ cityCode }) : resolveCitySelection(cityText);
     const normalizedCityText = normalizeLocationText(cityText);
-    const specialty = (req.query.specialty || '').trim().toLowerCase();
-    const type = (req.query.type || '').trim().toLowerCase();
+    const specialty = normalize(req.query.specialty);
+    const type = normalize(req.query.type);
+    const requiresSstLicense = req.query.requiresSstLicense === 'true';
+    const requiresWorkingAtHeights = req.query.requiresWorkingAtHeights === 'true';
+    const requiresConfinedSpaces = req.query.requiresConfinedSpaces === 'true';
+    const minYearsExperience = Number(req.query.minYearsExperience || 0);
+    const minRating = Number(req.query.minRating || 0);
+    const minCompletedServices = Number(req.query.minCompletedServices || 0);
 
     const professionals = await User.find({
       role: 'professional_sst',
       isActive: true,
-      'professionalProfile.availabilityStatus': { $ne: 'unavailable' },
+      'professionalProfile.availabilityStatus': 'available',
     })
       .select('profile professionalProfile')
       .lean();
@@ -146,32 +182,57 @@ router.get('/professionals/public', async (req, res, next) => {
     const filtered = professionals.filter((p) => {
       const prof = p.professionalProfile || {};
       if (cityCode || cityText) {
-        const byCode =
-          !!selectedCity &&
-          (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
-        const byText =
-          normalizeLocationText(prof.city) === normalizedCityText ||
-          (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
-        if (!byCode && !byText && !prof.canTravel) return false;
+        if (!hasCityCoverage(prof, selectedCity, normalizedCityText)) return false;
       }
+
+      if (type) {
+        const profession = normalize(prof.mainProfession);
+        const mainRole = normalize(prof.mainRole);
+        const services = (prof.servicesOffered || []).map(normalize);
+        const isSstRequired = isSstText(type);
+        const sstMatch =
+          isSstText(profession) || isSstText(mainRole) || services.some((s) => isSstText(s));
+        const typeMatch =
+          profession.includes(type) ||
+          mainRole.includes(type) ||
+          services.some((s) => s.includes(type) || type.includes(s)) ||
+          (isSstRequired && sstMatch);
+        if (!typeMatch) return false;
+      }
+
       if (specialty) {
         const specialties = [prof.specialty, ...(prof.specialties || []), ...(prof.servicesOffered || [])]
-          .map((s) => (s || '').toLowerCase())
+          .map(normalize)
           .filter(Boolean);
         if (!specialties.some((s) => s.includes(specialty) || specialty.includes(s))) return false;
       }
-      if (type) {
-        const profession = (prof.mainProfession || '').toLowerCase();
-        const mainRole = (prof.mainRole || '').toLowerCase();
-        const services = (prof.servicesOffered || []).map((s) => (s || '').toLowerCase());
-        if (
-          !profession.includes(type) &&
-          !mainRole.includes(type) &&
-          !services.some((s) => s.includes(type) || type.includes(s))
-        ) {
-          return false;
-        }
+
+      if (requiresSstLicense) {
+        const hasMain =
+          prof.licenseNumber &&
+          prof.licenseExpiryDate &&
+          new Date(prof.licenseExpiryDate).getTime() >= Date.now();
+        const hasList = (prof.licenses || []).some(
+          (license) =>
+            license?.number &&
+            license?.expiryDate &&
+            new Date(license.expiryDate).getTime() >= Date.now()
+        );
+        if (!hasMain && !hasList) return false;
       }
+
+      if (requiresWorkingAtHeights || requiresConfinedSpaces) {
+        // En busqueda manual se valida contra tipos declarados en perfil hasta que haya join de certificaciones.
+        const declared = [prof.specialty, ...(prof.specialties || []), ...(prof.servicesOffered || [])]
+          .map(normalize)
+          .join(' ');
+        if (requiresWorkingAtHeights && !declared.includes('alturas')) return false;
+        if (requiresConfinedSpaces && !declared.includes('confinad')) return false;
+      }
+
+      if (minYearsExperience > 0 && Number(prof.yearsExperience || 0) < minYearsExperience) return false;
+      if (minRating > 0 && Number(prof.ratingAvg || 0) < minRating) return false;
+      if (minCompletedServices > 0 && Number(prof.completedServicesCount || 0) < minCompletedServices) return false;
       return true;
     });
 
@@ -247,6 +308,9 @@ router.patch(
   [
     body('professionalProfile').isObject(),
     body('professionalProfile.yearsExperience').optional().isInt({ min: 0 }),
+    body('professionalProfile.geographicAvailability')
+      .optional()
+      .isIn(['city_only', 'city_nearby', 'department', 'multi_department', 'nationwide']),
     body('professionalProfile.availabilityStatus')
       .optional()
       .isIn(['available', 'busy', 'unavailable']),
@@ -275,6 +339,7 @@ router.patch(
         'areasExperience',
         'servicesOffered',
         'specialties',
+        'geographicAvailability',
         'canTravel',
         'immediateAvailability',
         'availabilityStatus',
@@ -285,6 +350,11 @@ router.patch(
         if (req.body.professionalProfile?.[key] !== undefined) {
           patch[`professionalProfile.${key}`] = req.body.professionalProfile[key];
         }
+      }
+
+      const geographicAvailability = req.body.professionalProfile?.geographicAvailability;
+      if (geographicAvailability === 'nationwide') {
+        patch['professionalProfile.canTravel'] = true;
       }
       if (req.body.profile?.avatarUrl !== undefined) {
         patch['profile.avatarUrl'] = req.body.profile.avatarUrl;
@@ -597,6 +667,9 @@ router.post(
     body('description').trim().notEmpty(),
     body('requiredAvailability').optional().isIn(MARKETPLACE_REQUIRED_AVAILABILITY),
     body('budgetReference').optional().isFloat({ min: 0 }),
+    body('minimumRating').optional().isFloat({ min: 0, max: 5 }),
+    body('minimumCompletedServices').optional().isInt({ min: 0 }),
+    body('requiresSstLicense').optional().isBoolean(),
   ],
   async (req, res, next) => {
     try {
@@ -632,9 +705,13 @@ router.post(
         requiredProfessionalType: req.body.requiredProfessionalType,
         requiredService: req.body.requiredService,
         minYearsExperience: Number(req.body.minYearsExperience || 0),
+        minimumRating: Number(req.body.minimumRating || 0),
+        minimumCompletedServices: Number(req.body.minimumCompletedServices || 0),
+        availableFromDate: req.body.availableFromDate,
         workersCount: req.body.workersCount,
         riskLevel: req.body.riskLevel,
         schedule: req.body.schedule,
+        requiresSstLicense: !!req.body.requiresSstLicense,
         requiresWorkingAtHeights: !!req.body.requiresWorkingAtHeights,
         requiresConfinedSpaces: !!req.body.requiresConfinedSpaces,
         requiresImmediateAvailability: !!req.body.requiresImmediateAvailability,

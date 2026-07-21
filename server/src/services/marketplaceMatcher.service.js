@@ -41,6 +41,62 @@ function hasValidSstLicense(profile) {
   return !!(singleValid || listValid);
 }
 
+function isCertValid(cert) {
+  if (!cert) return false;
+  if (!cert.expiresAt) return true;
+  return new Date(cert.expiresAt).getTime() >= Date.now();
+}
+
+function matchesProfessionalType(profile, requiredType, requiredService) {
+  const profession = normalize(profile?.mainProfession);
+  const mainRole = normalize(profile?.mainRole);
+  const services = (profile?.servicesOffered || []).map(normalize);
+  const specialty = normalize(profile?.specialty);
+
+  if (!requiredType) return true;
+
+  const requiresSst = isSstText(requiredType) || isSstText(requiredService);
+  const hasSstProfile =
+    isSstText(profession) ||
+    isSstText(mainRole) ||
+    isSstText(specialty) ||
+    services.some((s) => isSstText(s));
+
+  return (
+    profession.includes(requiredType) ||
+    mainRole.includes(requiredType) ||
+    services.some((s) => s.includes(requiredService) || requiredService.includes(s)) ||
+    (requiresSst && hasSstProfile)
+  );
+}
+
+function hasCoverageForCity(profile, requestedCity, requestedCityText) {
+  const p = profile || {};
+  const mode = p.geographicAvailability || 'city_only';
+  const nationwide = mode === 'nationwide' || !!p.canTravel;
+  if (nationwide) return true;
+
+  if (!requestedCity && !requestedCityText) return true;
+
+  const sameCityByCode =
+    !!requestedCity &&
+    (p.cityCode === requestedCity.cityCode || (p.serviceMunicipalityCodes || []).includes(requestedCity.cityCode));
+  const sameCityByText =
+    normalizeLocationText(p.city) === requestedCityText ||
+    (p.serviceMunicipalities || []).map((name) => normalizeLocationText(name)).includes(requestedCityText);
+  const inRequestedDepartment =
+    !!requestedCity &&
+    (p.departmentCode === requestedCity.departmentCode ||
+      (p.serviceDepartmentCodes || []).includes(requestedCity.departmentCode));
+
+  if (mode === 'city_only') return sameCityByCode || sameCityByText;
+  if (mode === 'city_nearby') return sameCityByCode || sameCityByText;
+  if (mode === 'department') return inRequestedDepartment || sameCityByCode || sameCityByText;
+  if (mode === 'multi_department') return inRequestedDepartment || sameCityByCode || sameCityByText;
+
+  return sameCityByCode || sameCityByText;
+}
+
 export async function findMatchingProfessionals(request) {
   const requestedCity = resolveCitySelection({ cityCode: request.cityCode }) || resolveCitySelection(request.city);
   const requestedCityText = normalizeLocationText(request.city);
@@ -48,92 +104,38 @@ export async function findMatchingProfessionals(request) {
   const requiredService = normalize(request.requiredService || request.requiredProfessionalType);
   const requiredSpecialties = (request.requiredSpecialties || []).map(normalize).filter(Boolean);
   const minYearsExperience = Number(request.minYearsExperience || 0);
+  const minRating = Number(request.minimumRating || 0);
+  const minCompletedServices = Number(request.minimumCompletedServices || 0);
+  const requiresSstLicense = !!request.requiresSstLicense;
   const requiredAvailability = request.requiredAvailability || (request.requiresImmediateAvailability ? 'immediate' : 'this_week');
-
-  const availabilityFilter =
-    requiredAvailability === 'next_week' || requiredAvailability === 'specific_date'
-      ? { $in: ['available', 'busy'] }
-      : 'available';
 
   const professionals = await User.find({
     role: 'professional_sst',
     isActive: true,
-    'professionalProfile.availabilityStatus': availabilityFilter,
+    'professionalProfile.availabilityStatus': 'available',
   })
     .select('email profile professionalProfile')
     .lean();
 
-  const byCoverage = professionals.filter((pro) => {
-    const p = pro.professionalProfile || {};
-    const byCode =
-      !!requestedCity &&
-      (p.cityCode === requestedCity.cityCode || (p.serviceMunicipalityCodes || []).includes(requestedCity.cityCode));
-    const byText =
-      normalizeLocationText(p.city) === requestedCityText ||
-      (p.serviceMunicipalities || []).map((cityName) => normalizeLocationText(cityName)).includes(requestedCityText);
-    return byCode || byText || p.canTravel;
-  });
+  // 1) Cobertura geográfica (prioridad máxima)
+  const byCoverage = professionals.filter((pro) =>
+    hasCoverageForCity(pro.professionalProfile, requestedCity, requestedCityText)
+  );
 
-  // Si por cobertura no hay nada (datos incompletos o ciudad no cubierta),
-  // se abre el universo a disponibles para evitar listas vacias.
-  const baseCandidates = byCoverage.length > 0 ? byCoverage : professionals;
+  // 2) Tipo de profesional
+  const byType = byCoverage.filter((pro) =>
+    matchesProfessionalType(pro.professionalProfile, requiredType, requiredService)
+  );
 
-  const typeMatches = baseCandidates.filter((pro) => {
-    const p = pro.professionalProfile || {};
-    const profession = normalize(p.mainProfession);
-    const mainRole = normalize(p.mainRole);
-    const services = (p.servicesOffered || []).map(normalize);
-    const specialty = normalize(p.specialty);
-    if (!requiredType) return true;
+  // 3) Disponibilidad (ya viene forzada en query a available)
 
-    const requiresSst = isSstText(requiredType) || isSstText(requiredService);
-    const hasSstProfile =
-      isSstText(profession) ||
-      isSstText(mainRole) ||
-      isSstText(specialty) ||
-      services.some((s) => isSstText(s));
+  // 4) Licencia SST (si se exige)
+  const byLicense = requiresSstLicense
+    ? byType.filter((pro) => hasValidSstLicense(pro.professionalProfile))
+    : byType;
 
-    return (
-      profession.includes(requiredType) ||
-      mainRole.includes(requiredType) ||
-      services.some((s) => s.includes(requiredService) || requiredService.includes(s)) ||
-      (requiresSst && hasSstProfile)
-    );
-  });
-
-  const typeMatchIds = new Set(typeMatches.map((pro) => pro._id.toString()));
-  const byType = baseCandidates;
-
-  const specialtyMatches = byType.filter((pro) => {
-    if (!requiredSpecialties.length) return false;
-    const p = pro.professionalProfile || {};
-    const specialties = (p.specialties || []).map(normalize);
-    return requiredSpecialties.some((requested) =>
-      specialties.some((have) => have.includes(requested) || requested.includes(have))
-    );
-  });
-
-  const bySpecialty = requiredSpecialties.length && specialtyMatches.length > 0 ? specialtyMatches : byType;
-
-  const experienceMatches = bySpecialty.filter((pro) => {
-    if (!minYearsExperience) return false;
-    const years = Number(pro.professionalProfile?.yearsExperience || 0);
-    return years >= minYearsExperience;
-  });
-
-  const byExperience = minYearsExperience > 0 && experienceMatches.length > 0 ? experienceMatches : bySpecialty;
-
-  const immediateMatches = byExperience.filter((pro) => {
-    if (requiredAvailability !== 'immediate' && !request.requiresImmediateAvailability) return false;
-    return !!pro.professionalProfile?.immediateAvailability;
-  });
-
-  const byAvailability =
-    (requiredAvailability === 'immediate' || request.requiresImmediateAvailability) && immediateMatches.length > 0
-      ? immediateMatches
-      : byExperience;
-
-  const ids = byAvailability.map((p) => p._id);
+  // 5) Certificaciones requeridas
+  const ids = byLicense.map((p) => p._id);
   const certifications = await ProfessionalCertification.find({ professional: { $in: ids } })
     .select('professional type expiresAt')
     .lean();
@@ -145,19 +147,55 @@ export async function findMatchingProfessionals(request) {
     return acc;
   }, {});
 
-  return byAvailability
+  const byCertifications = byLicense.filter((pro) => {
+    const certs = certMap[pro._id.toString()] || [];
+    const hasHeights = certs.some((c) => c.type === 'coordinador_alturas' && isCertValid(c));
+    const hasConfined = certs.some((c) => c.type === 'espacios_confinados' && isCertValid(c));
+    if (request.requiresWorkingAtHeights && !hasHeights) return false;
+    if (request.requiresConfinedSpaces && !hasConfined) return false;
+    return true;
+  });
+
+  // 6) Experiencia
+  const specialtyMatches = byCertifications.filter((pro) => {
+    if (!requiredSpecialties.length) return false;
+    const p = pro.professionalProfile || {};
+    const specialties = (p.specialties || []).map(normalize);
+    return requiredSpecialties.some((requested) =>
+      specialties.some((have) => have.includes(requested) || requested.includes(have))
+    );
+  });
+
+  const bySpecialty = requiredSpecialties.length > 0 ? specialtyMatches : byCertifications;
+
+  const experienceMatches = bySpecialty.filter((pro) => {
+    if (!minYearsExperience) return true;
+    const years = Number(pro.professionalProfile?.yearsExperience || 0);
+    return years >= minYearsExperience;
+  });
+
+  const byExperience = minYearsExperience > 0 ? experienceMatches : bySpecialty;
+
+  // 7) Otros filtros opcionales
+  const byOptionalFilters = byExperience.filter((pro) => {
+    const p = pro.professionalProfile || {};
+    if (requiredAvailability === 'immediate' || request.requiresImmediateAvailability) {
+      if (!p.immediateAvailability) return false;
+    }
+    if (minRating > 0 && Number(p.ratingAvg || 0) < minRating) return false;
+    if (minCompletedServices > 0 && Number(p.completedServicesCount || 0) < minCompletedServices) return false;
+    return true;
+  });
+
+  return byOptionalFilters
     .map((pro) => {
       const p = pro.professionalProfile || {};
       const certs = certMap[pro._id.toString()] || [];
-      const hasHeights = certs.some((c) => c.type === 'coordinador_alturas');
-      const hasConfined = certs.some((c) => c.type === 'espacios_confinados');
-
-      if (request.requiresWorkingAtHeights && !hasHeights) return null;
-      if (request.requiresConfinedSpaces && !hasConfined) return null;
+      const typeMatch = matchesProfessionalType(p, requiredType, requiredService);
 
       // Puntaje compuesto para priorizar coincidencia, sin eliminar candidatos utiles.
       let score = Number(p.ratingAvg || 0);
-      if (requiredType && typeMatchIds.has(pro._id.toString())) score += 2;
+      if (requiredType && typeMatch) score += 2;
       if (requiredSpecialties.length > 0) {
         const specialties = (p.specialties || []).map(normalize);
         const specialtyHits = requiredSpecialties.filter((requested) =>
@@ -178,10 +216,16 @@ export async function findMatchingProfessionals(request) {
         profile: pro.profile,
         professionalProfile: p,
         certificationsCount: certs.length,
+        geographicMatch:
+          p.geographicAvailability === 'nationwide' || p.canTravel
+            ? 'nationwide'
+            : (requestedCity && p.cityCode === requestedCity.cityCode) ||
+                (requestedCity && (p.serviceMunicipalityCodes || []).includes(requestedCity.cityCode))
+              ? 'city'
+              : 'department',
         score,
       };
     })
-    .filter(Boolean)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return (b.professionalProfile?.completedServicesCount || 0) -

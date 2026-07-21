@@ -18,6 +18,31 @@ import {
 
 const router = Router();
 
+function normalize(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function hasCoverage(prof, selectedCity, normalizedCityText) {
+  const mode = prof.geographicAvailability || 'city_only';
+  const nationwide = mode === 'nationwide' || !!prof.canTravel;
+  if (nationwide) return true;
+
+  const byCode =
+    !!selectedCity &&
+    (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
+  const byText =
+    normalizeLocationText(prof.city) === normalizedCityText ||
+    (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
+  const byDepartment =
+    !!selectedCity &&
+    (prof.departmentCode === selectedCity.departmentCode ||
+      (prof.serviceDepartmentCodes || []).includes(selectedCity.departmentCode));
+
+  if (mode === 'city_only' || mode === 'city_nearby') return byCode || byText;
+  if (mode === 'department' || mode === 'multi_department') return byDepartment || byCode || byText;
+  return byCode || byText;
+}
+
 router.get('/locations/search', async (req, res) => {
   const type = req.query.type === 'department' ? 'department' : 'city';
   const query = String(req.query.query || '');
@@ -34,12 +59,13 @@ router.get('/professionals', async (req, res, next) => {
     const cityText = String(req.query.city || '').trim();
     const selectedCity = cityCode ? resolveCitySelection({ cityCode }) : resolveCitySelection(cityText);
     const normalizedCityText = normalizeLocationText(cityText);
-    const specialty = (req.query.specialty || '').trim().toLowerCase();
+    const specialty = normalize(req.query.specialty);
+    const type = normalize(req.query.type);
 
     const professionals = await User.find({
       role: 'professional_sst',
       isActive: true,
-      'professionalProfile.availabilityStatus': { $ne: 'unavailable' },
+      'professionalProfile.availabilityStatus': 'available',
     })
       .select('profile professionalProfile')
       .sort({ 'professionalProfile.ratingAvg': -1, 'professionalProfile.completedServicesCount': -1 })
@@ -48,21 +74,33 @@ router.get('/professionals', async (req, res, next) => {
     const filtered = professionals.filter((p) => {
       const prof = p.professionalProfile || {};
       if (cityCode || cityText) {
-        const byCode = !!selectedCity && (
-          prof.cityCode === selectedCity.cityCode ||
-          (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode)
-        );
-        const byText =
-          normalizeLocationText(prof.city) === normalizedCityText ||
-          (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
-        const inCoverage = byCode || byText;
-        if (!inCoverage && !prof.canTravel) return false;
+        if (!hasCoverage(prof, selectedCity, normalizedCityText)) return false;
       }
       if (specialty) {
         const specialties = [prof.specialty, ...(prof.specialties || []), ...(prof.servicesOffered || [])]
-          .map((s) => (s || '').toLowerCase())
+          .map(normalize)
           .filter(Boolean);
         if (!specialties.some((s) => s.includes(specialty) || specialty.includes(s))) return false;
+      }
+      if (type) {
+        const profession = normalize(prof.mainProfession);
+        const mainRole = normalize(prof.mainRole);
+        const services = (prof.servicesOffered || []).map(normalize);
+        const isSstType = type.includes('sst') || type.includes('seguridad y salud en el trabajo');
+        const sstMatch =
+          profession.includes('sst') ||
+          profession.includes('seguridad y salud en el trabajo') ||
+          mainRole.includes('sst') ||
+          mainRole.includes('seguridad y salud en el trabajo') ||
+          services.some((s) => s.includes('sst') || s.includes('seguridad y salud en el trabajo'));
+        if (
+          !profession.includes(type) &&
+          !mainRole.includes(type) &&
+          !services.some((s) => s.includes(type) || type.includes(s)) &&
+          !(isSstType && sstMatch)
+        ) {
+          return false;
+        }
       }
       return true;
     });

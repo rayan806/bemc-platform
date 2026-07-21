@@ -26,6 +26,14 @@ const assignmentStatuses = {
   cancelled: 'Cancelada',
 };
 
+const geographicAvailabilityOptions = [
+  { value: 'city_only', label: 'Solo en mi ciudad' },
+  { value: 'city_nearby', label: 'En mi ciudad y municipios cercanos' },
+  { value: 'department', label: 'En todo mi departamento' },
+  { value: 'multi_department', label: 'En varios departamentos' },
+  { value: 'nationwide', label: 'En cualquier lugar de Colombia' },
+];
+
 function formatMoney(value) {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -49,6 +57,15 @@ function pairCityLocations(names = [], codes = [], departmentName = '', departme
     departmentCode,
     countryCode: 'CO',
     displayName: departmentName ? `${name}, ${departmentName}` : name,
+  }));
+}
+
+function pairDepartmentLocations(names = [], codes = []) {
+  return (names || []).map((name, index) => ({
+    departmentName: name,
+    departmentCode: codes?.[index] || `${name}-${index}`,
+    countryCode: 'CO',
+    displayName: name,
   }));
 }
 
@@ -118,6 +135,8 @@ export default function PortalMarketplace() {
     specialtiesText: '',
     cityLocation: null,
     serviceMunicipalityLocations: [],
+    serviceDepartmentLocations: [],
+    geographicAvailability: 'city_only',
     availabilityStatus: 'available',
     canTravel: false,
     avatarUrl: '',
@@ -148,6 +167,7 @@ export default function PortalMarketplace() {
     workersCount: 1,
     riskLevel: 'medio',
     description: '',
+    requiresSstLicense: true,
     requiresWorkingAtHeights: false,
     requiresConfinedSpaces: false,
     requiresImmediateAvailability: false,
@@ -206,6 +226,11 @@ export default function PortalMarketplace() {
             p.department || '',
             p.departmentCode || ''
           ),
+          serviceDepartmentLocations: pairDepartmentLocations(
+            p.serviceDepartments,
+            p.serviceDepartmentCodes
+          ),
+          geographicAvailability: p.geographicAvailability || (p.canTravel ? 'nationwide' : 'city_only'),
           availabilityStatus: p.availabilityStatus || 'available',
           canTravel: !!p.canTravel,
           avatarUrl: baseProfile.avatarUrl || '',
@@ -250,6 +275,7 @@ export default function PortalMarketplace() {
       await api.post('/marketplace/requests', {
         ...form,
         cityLocation: form.cityLocation,
+        requiresSstLicense: !!form.requiresSstLicense,
         workersCount: Number(form.workersCount),
         requiredSpecialties: parseCsv(form.requiredSpecialtiesText),
         attachments: (form.attachmentsText || '')
@@ -271,6 +297,7 @@ export default function PortalMarketplace() {
         workersCount: 1,
         riskLevel: 'medio',
         description: '',
+        requiresSstLicense: true,
         requiresWorkingAtHeights: false,
         requiresConfinedSpaces: false,
         requiresImmediateAvailability: false,
@@ -319,7 +346,9 @@ export default function PortalMarketplace() {
           specialties: parseCsv(professionalProfile.specialtiesText),
           cityLocation: professionalProfile.cityLocation,
           serviceMunicipalityLocations: professionalProfile.serviceMunicipalityLocations,
-          canTravel: !!professionalProfile.canTravel,
+          serviceDepartmentLocations: professionalProfile.serviceDepartmentLocations,
+          geographicAvailability: professionalProfile.geographicAvailability,
+          canTravel: professionalProfile.geographicAvailability === 'nationwide' ? true : !!professionalProfile.canTravel,
           availabilityStatus: professionalProfile.availabilityStatus,
           studies: parseStudies(professionalProfile.studiesText),
           licenses: parseLicenses(professionalProfile.licensesText),
@@ -501,6 +530,7 @@ export default function PortalMarketplace() {
               <div className="col-md-3"><input className="form-control" placeholder="Licencia principal" value={professionalProfile.licenseNumber} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licenseNumber: e.target.value }))} /></div>
               <div className="col-md-3"><input type="date" className="form-control" value={professionalProfile.licenseExpiryDate} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licenseExpiryDate: e.target.value }))} /></div>
               <div className="col-md-3"><select className="form-select" value={professionalProfile.availabilityStatus} onChange={(e) => setProfessionalProfile((p) => ({ ...p, availabilityStatus: e.target.value }))}><option value="available">Disponible</option><option value="busy">Ocupado</option><option value="unavailable">No disponible</option></select></div>
+              <div className="col-md-6"><select className="form-select" value={professionalProfile.geographicAvailability} onChange={(e) => setProfessionalProfile((p) => ({ ...p, geographicAvailability: e.target.value, canTravel: e.target.value === 'nationwide' ? true : p.canTravel }))}>{geographicAvailabilityOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
               <div className="col-md-8">
                 <LocationAutocomplete
                   type="city"
@@ -520,12 +550,24 @@ export default function PortalMarketplace() {
                   placeholder="Agrega municipios"
                   values={professionalProfile.serviceMunicipalityLocations}
                   onChangeMany={(options) => setProfessionalProfile((p) => ({ ...p, serviceMunicipalityLocations: options }))}
+                  disabled={professionalProfile.geographicAvailability === 'nationwide' || professionalProfile.geographicAvailability === 'city_only' || professionalProfile.geographicAvailability === 'department'}
+                />
+              </div>
+              <div className="col-md-6">
+                <LocationAutocomplete
+                  multiple
+                  type="department"
+                  label="Departamentos de cobertura"
+                  placeholder="Agrega departamentos"
+                  values={professionalProfile.serviceDepartmentLocations}
+                  onChangeMany={(options) => setProfessionalProfile((p) => ({ ...p, serviceDepartmentLocations: options }))}
+                  disabled={professionalProfile.geographicAvailability !== 'multi_department'}
                 />
               </div>
               <div className="col-12"><textarea className="form-control" rows="2" placeholder="Resumen de experiencia" value={professionalProfile.experienceSummary} onChange={(e) => setProfessionalProfile((p) => ({ ...p, experienceSummary: e.target.value }))} /></div>
               <div className="col-12"><textarea className="form-control" rows="3" placeholder="Estudios (linea: titulo|institucion|anio)" value={professionalProfile.studiesText} onChange={(e) => setProfessionalProfile((p) => ({ ...p, studiesText: e.target.value }))} /></div>
               <div className="col-12"><textarea className="form-control" rows="3" placeholder="Licencias (linea: nombre|numero|fecha_yyyy-mm-dd)" value={professionalProfile.licensesText} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licensesText: e.target.value }))} /></div>
-              <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="canTravel" type="checkbox" checked={professionalProfile.canTravel} onChange={(e) => setProfessionalProfile((p) => ({ ...p, canTravel: e.target.checked }))} /><label className="form-check-label" htmlFor="canTravel">Disponible para viajar</label></div>
+              <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="canTravel" type="checkbox" checked={professionalProfile.canTravel} disabled={professionalProfile.geographicAvailability === 'nationwide'} onChange={(e) => setProfessionalProfile((p) => ({ ...p, canTravel: e.target.checked }))} /><label className="form-check-label" htmlFor="canTravel">Disponible para viajar</label></div>
               <div className="col-12"><button type="submit" className="btn btn-bemc btn-sm">Guardar perfil</button></div>
             </form>
           </div>
@@ -589,6 +631,7 @@ export default function PortalMarketplace() {
               <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="heights" type="checkbox" checked={form.requiresWorkingAtHeights} onChange={(e) => setForm((p) => ({ ...p, requiresWorkingAtHeights: e.target.checked }))} /><label className="form-check-label" htmlFor="heights">Requiere alturas</label></div>
               <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="confined" type="checkbox" checked={form.requiresConfinedSpaces} onChange={(e) => setForm((p) => ({ ...p, requiresConfinedSpaces: e.target.checked }))} /><label className="form-check-label" htmlFor="confined">Requiere espacios confinados</label></div>
               <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="immediate" type="checkbox" checked={form.requiresImmediateAvailability} onChange={(e) => setForm((p) => ({ ...p, requiresImmediateAvailability: e.target.checked }))} /><label className="form-check-label" htmlFor="immediate">Requiere disponibilidad inmediata</label></div>
+              <div className="col-md-4 form-check ms-2"><input className="form-check-input" id="licenseRequired" type="checkbox" checked={form.requiresSstLicense} onChange={(e) => setForm((p) => ({ ...p, requiresSstLicense: e.target.checked }))} /><label className="form-check-label" htmlFor="licenseRequired">Requiere licencia SST vigente</label></div>
               <div className="col-md-3 form-check ms-2"><input className="form-check-input" id="publish" type="checkbox" checked={form.publishNow} onChange={(e) => setForm((p) => ({ ...p, publishNow: e.target.checked }))} /><label className="form-check-label" htmlFor="publish">Publicar de inmediato</label></div>
               <div className="col-12"><button type="submit" className="btn btn-bemc btn-sm">Crear solicitud</button></div>
             </form>
