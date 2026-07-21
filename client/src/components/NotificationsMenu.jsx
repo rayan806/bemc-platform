@@ -127,6 +127,7 @@ export default function NotificationsMenu() {
     setBusyId(notification._id);
     try {
       await api.post(`/marketplace/requests/${requestId}/reject`);
+      window.dispatchEvent(new CustomEvent('marketplace:request-rejected', { detail: { requestId } }));
       removeRequestNotifications(requestId);
     } catch (err) {
       const status = err?.response?.status;

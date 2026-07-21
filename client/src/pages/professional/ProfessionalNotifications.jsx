@@ -37,6 +37,7 @@ export default function ProfessionalNotifications() {
     setBusyRequestId(requestId);
     try {
       await api.post(`/marketplace/requests/${requestId}/reject`);
+      window.dispatchEvent(new CustomEvent('marketplace:request-rejected', { detail: { requestId } }));
       setRows((prev) => prev.filter(
         (row) => !(['marketplace_match', 'marketplace_reopened'].includes(row.type) && row?.payload?.requestId === requestId)
       ));

@@ -30,6 +30,17 @@ export default function ProfessionalOpportunities() {
     load();
   }, []);
 
+  useEffect(() => {
+    const handleRejected = (event) => {
+      const requestId = event?.detail?.requestId;
+      if (!requestId) return;
+      setRows((prev) => prev.filter((row) => row._id !== requestId));
+    };
+
+    window.addEventListener('marketplace:request-rejected', handleRejected);
+    return () => window.removeEventListener('marketplace:request-rejected', handleRejected);
+  }, []);
+
   const setField = (requestId, field, value) => {
     setForms((prev) => ({
       ...prev,
@@ -68,6 +79,7 @@ export default function ProfessionalOpportunities() {
     setBusyId(id);
     try {
       await api.post(`/marketplace/requests/${id}/reject`);
+      window.dispatchEvent(new CustomEvent('marketplace:request-rejected', { detail: { requestId: id } }));
       setRows((prev) => prev.filter((row) => row._id !== id));
     } finally {
       setBusyId('');
