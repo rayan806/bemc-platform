@@ -965,15 +965,14 @@ router.post('/requests/:id/reject', async (req, res, next) => {
       await request.save();
     }
 
-    await Notification.updateMany(
-      {
-        user: req.user._id,
-        type: { $in: ['marketplace_match', 'marketplace_reopened'] },
-        'payload.requestId': request._id,
-        readAt: null,
-      },
-      { $set: { readAt: new Date() } }
-    );
+    await Notification.deleteMany({
+      user: req.user._id,
+      type: { $in: ['marketplace_match', 'marketplace_reopened'] },
+      $or: [
+        { 'payload.requestId': request._id },
+        { 'payload.requestId': request._id.toString() },
+      ],
+    });
 
     res.json({ message: 'Oportunidad descartada' });
   } catch (err) {

@@ -58,10 +58,15 @@ router.get('/', async (req, res, next) => {
       return !requestId || !blockedIds.has(requestId);
     });
 
+    const blockedObjectIds = Array.from(blockedIds);
+    const blockedStrings = blockedObjectIds.map((id) => id.toString());
     await Notification.deleteMany({
       user: req.user._id,
       type: { $in: requestNotificationTypes },
-      'payload.requestId': { $in: Array.from(blockedIds) },
+      $or: [
+        { 'payload.requestId': { $in: blockedObjectIds } },
+        { 'payload.requestId': { $in: blockedStrings } },
+      ],
     });
 
     res.json(filtered);
