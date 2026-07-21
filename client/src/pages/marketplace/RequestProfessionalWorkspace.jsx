@@ -32,6 +32,7 @@ export default function RequestProfessionalWorkspace() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [openingPdf, setOpeningPdf] = useState(false);
 
   const isCompany = user?.role === 'client';
 
@@ -112,6 +113,23 @@ export default function RequestProfessionalWorkspace() {
     }
   };
 
+  const openContractPdf = async () => {
+    if (!contractUrl) return;
+
+    setOpeningPdf(true);
+    try {
+      const response = await api.get(contractUrl, { responseType: 'blob' });
+      const pdfBlob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/pdf' });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'No se pudo abrir el contrato PDF');
+    } finally {
+      setOpeningPdf(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="card card-bemc p-4">
@@ -173,7 +191,10 @@ export default function RequestProfessionalWorkspace() {
         <h3 className="h6 mb-3">Contrato PDF</h3>
         {contractUrl ? (
           <div className="alert alert-success py-2">
-            Contrato actual: <a href={contractUrl} target="_blank" rel="noreferrer">Ver PDF</a>
+            Contrato actual:{' '}
+            <button type="button" className="btn btn-link p-0 align-baseline" onClick={openContractPdf} disabled={openingPdf}>
+              {openingPdf ? 'Abriendo...' : 'Ver PDF'}
+            </button>
           </div>
         ) : (
           <p className="text-muted small">Aun no hay contrato cargado.</p>
