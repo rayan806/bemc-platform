@@ -502,7 +502,7 @@ export default function ProfessionalProfile() {
               <h3 className="h6 mb-2">Experiencia laboral</h3>
               {form.workExperiences.map((w, i) => (
                 <div className="row g-2 mb-2" key={`work-${i}`}>
-                  <div className="col-md-3"><input className="form-control" placeholder="Empresa" value={w.company || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, company: e.target.value } : x) }))} /></div>
+                  <div className="col-md-3"><input id={`work-company-${i}`} className="form-control" placeholder="Empresa" value={w.company || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, company: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input className="form-control" placeholder="Cargo" value={w.role || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, role: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={w.startDate ? String(w.startDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, startDate: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={w.endDate ? String(w.endDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, endDate: e.target.value } : x) }))} /></div>
@@ -514,7 +514,22 @@ export default function ProfessionalProfile() {
                       onChange={(option) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, city: option?.cityName || '' } : x) }))}
                     />
                   </div>
-                  <div className="col-md-1"><button type="button" className="btn btn-outline-danger w-100" onClick={() => setForm((p) => ({ ...p, workExperiences: p.workExperiences.filter((_, idx) => idx !== i) }))}>Eliminar</button></div>
+                  <div className="col-md-1 d-grid gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm w-100"
+                      onClick={() => document.getElementById(`work-company-${i}`)?.focus()}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm w-100"
+                      onClick={() => setForm((p) => ({ ...p, workExperiences: p.workExperiences.filter((_, idx) => idx !== i) }))}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                   <div className="col-12"><textarea className="form-control" rows="2" placeholder="Funciones" value={w.functions || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, functions: e.target.value } : x) }))} /></div>
                 </div>
               ))}
@@ -527,7 +542,7 @@ export default function ProfessionalProfile() {
               <h3 className="h6 mb-2">Formacion academica</h3>
               {form.educationItems.map((ed, i) => (
                 <div className="row g-2 mb-2" key={`edu-${i}`}>
-                  <div className="col-md-2"><input className="form-control" placeholder="Nivel" value={ed.level || ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, level: e.target.value } : x) }))} /></div>
+                  <div className="col-md-2"><input id={`edu-level-${i}`} className="form-control" placeholder="Nivel" value={ed.level || ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, level: e.target.value } : x) }))} /></div>
                   <div className="col-md-3"><input className="form-control" placeholder="Titulo" value={ed.title || ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, title: e.target.value } : x) }))} /></div>
                   <div className="col-md-3"><input className="form-control" placeholder="Institucion" value={ed.institution || ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, institution: e.target.value } : x) }))} /></div>
                   <div className="col-md-2"><input type="date" className="form-control" value={ed.startDate ? String(ed.startDate).slice(0, 10) : ''} onChange={(e) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, startDate: e.target.value } : x) }))} /></div>
@@ -540,7 +555,22 @@ export default function ProfessionalProfile() {
                       onChange={(option) => setForm((p) => ({ ...p, educationItems: p.educationItems.map((x, idx) => idx === i ? { ...x, city: option?.cityName || '' } : x) }))}
                     />
                   </div>
-                  <div className="col-md-1"><button type="button" className="btn btn-outline-danger w-100" onClick={() => setForm((p) => ({ ...p, educationItems: p.educationItems.filter((_, idx) => idx !== i) }))}>x</button></div>
+                  <div className="col-md-1 d-grid gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm w-100"
+                      onClick={() => document.getElementById(`edu-level-${i}`)?.focus()}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm w-100"
+                      onClick={() => setForm((p) => ({ ...p, educationItems: p.educationItems.filter((_, idx) => idx !== i) }))}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
               ))}
               <button type="button" className="btn btn-sm btn-outline-primary" onClick={addEdu}>Agregar formacion</button>
