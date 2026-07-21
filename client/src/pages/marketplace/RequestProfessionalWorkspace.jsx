@@ -118,13 +118,30 @@ export default function RequestProfessionalWorkspace() {
 
     setOpeningPdf(true);
     try {
-      const response = await api.get(contractUrl, { responseType: 'blob' });
-      const pdfBlob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/pdf' });
+      const token = window.localStorage.getItem('bemc_token');
+      const response = await fetch(contractUrl, {
+        headers: contractUrl.startsWith('/api/') && token
+          ? { Authorization: `Bearer ${token}` }
+          : undefined,
+      });
+
+      if (!response.ok) {
+        let message = 'No se pudo abrir el contrato PDF';
+        try {
+          const maybeJson = await response.json();
+          if (maybeJson?.message) message = maybeJson.message;
+        } catch {
+          // Mantiene el mensaje por defecto cuando la respuesta no es JSON.
+        }
+        throw new Error(message);
+      }
+
+      const pdfBlob = await response.blob();
       const blobUrl = URL.createObjectURL(pdfBlob);
       window.open(blobUrl, '_blank', 'noopener,noreferrer');
       setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
     } catch (err) {
-      alert(err.response?.data?.message || 'No se pudo abrir el contrato PDF');
+      alert(err.message || 'No se pudo abrir el contrato PDF');
     } finally {
       setOpeningPdf(false);
     }
