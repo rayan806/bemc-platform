@@ -90,6 +90,33 @@ function hasCityCoverage(prof, selectedCity, normalizedCityText) {
   return byCode || byText;
 }
 
+function getCityCoveragePriority(prof, selectedCity, normalizedCityText) {
+  const mode = prof.geographicAvailability || 'city_only';
+  const nationwide = mode === 'nationwide' || !!prof.canTravel;
+  if (nationwide) return 3;
+
+  const sameCityByCode =
+    !!selectedCity &&
+    (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
+  const sameCityByText =
+    normalizeLocationText(prof.city) === normalizedCityText ||
+    (prof.serviceMunicipalities || []).map((m) => normalizeLocationText(m)).includes(normalizedCityText);
+  if (sameCityByCode || sameCityByText) {
+    const isBaseCity =
+      (!!selectedCity && prof.cityCode === selectedCity.cityCode) ||
+      normalizeLocationText(prof.city) === normalizedCityText;
+    return isBaseCity ? 1 : 2;
+  }
+
+  const byDepartment =
+    !!selectedCity &&
+    (prof.departmentCode === selectedCity.departmentCode ||
+      (prof.serviceDepartmentCodes || []).includes(selectedCity.departmentCode));
+  if (byDepartment) return 2;
+
+  return 4;
+}
+
 async function notifyUser(userId, type, title, message, payload = {}) {
   await Notification.create({ user: userId, type, title, message, payload, channel: 'in_app' });
 }
@@ -308,7 +335,18 @@ router.get('/professionals/public', async (req, res, next) => {
       return true;
     });
 
-    res.json(filtered);
+    const sorted = filtered.sort((a, b) => {
+      const pa = getCityCoveragePriority(a.professionalProfile || {}, selectedCity, normalizedCityText);
+      const pb = getCityCoveragePriority(b.professionalProfile || {}, selectedCity, normalizedCityText);
+      if (pa !== pb) return pa - pb;
+      const ra = Number(a.professionalProfile?.ratingAvg || 0);
+      const rb = Number(b.professionalProfile?.ratingAvg || 0);
+      if (rb !== ra) return rb - ra;
+      return Number(b.professionalProfile?.completedServicesCount || 0) -
+        Number(a.professionalProfile?.completedServicesCount || 0);
+    });
+
+    res.json(sorted);
   } catch (err) {
     next(err);
   }
