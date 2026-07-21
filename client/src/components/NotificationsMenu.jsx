@@ -46,9 +46,13 @@ export default function NotificationsMenu() {
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(() => loadNotifications(true), 60000);
+    const interval = setInterval(() => loadNotifications(true), 15000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (open) loadNotifications(true);
+  }, [open]);
 
   useEffect(() => {
     const handleOutside = (event) => {

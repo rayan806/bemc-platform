@@ -27,6 +27,8 @@ export default function ProfessionalDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [me, setMe] = useState({ certifications: [], documents: [] });
 
+  const loadNotifications = () => api.get('/notifications').then((n) => setNotifications(n.data || []));
+
   useEffect(() => {
     Promise.all([
       api.get('/marketplace/summary'),
@@ -46,6 +48,13 @@ export default function ProfessionalDashboard() {
         documents: meRes.data?.documents || [],
       });
     });
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const unreadNotifications = notifications.filter((n) => !n.readAt).length;
