@@ -112,6 +112,15 @@ async function resolveWorkspace(req, requestId, professionalId) {
     return { error: { status: 403, message: 'No tienes acceso a este espacio' } };
   }
 
+  if (
+    professionalParticipant
+    && !assignment
+    && application
+    && application.status !== 'selected'
+  ) {
+    return { error: { status: 403, message: 'Solo puedes abrir el espacio cuando la empresa te seleccione' } };
+  }
+
   if (!ownerCompany && !professionalParticipant && !isOperator(req.user)) {
     return { error: { status: 403, message: 'Sin permisos' } };
   }

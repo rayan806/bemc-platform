@@ -42,10 +42,12 @@ export default function ProfessionalApplications() {
                   </span>
                 </td>
                 <td>
-                  {a.request?._id && (user?._id || user?.id) ? (
+                  {a.status === 'selected' && a.request?._id && (user?._id || user?.id) ? (
                     <Link className="btn btn-sm btn-outline-primary" to={`/profesional/espacio/${a.request._id}/${user?._id || user?.id}`}>
                       Abrir espacio
                     </Link>
+                  ) : a.status !== 'selected' ? (
+                    <span className="text-muted small">Disponible al ser seleccionado</span>
                   ) : null}
                 </td>
               </tr>
