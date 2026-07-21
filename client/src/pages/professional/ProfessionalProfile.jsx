@@ -514,7 +514,7 @@ export default function ProfessionalProfile() {
                       onChange={(option) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, city: option?.cityName || '' } : x) }))}
                     />
                   </div>
-                  <div className="col-md-1"><button type="button" className="btn btn-outline-danger w-100" onClick={() => setForm((p) => ({ ...p, workExperiences: p.workExperiences.filter((_, idx) => idx !== i) }))}>x</button></div>
+                  <div className="col-md-1"><button type="button" className="btn btn-outline-danger w-100" onClick={() => setForm((p) => ({ ...p, workExperiences: p.workExperiences.filter((_, idx) => idx !== i) }))}>Eliminar</button></div>
                   <div className="col-12"><textarea className="form-control" rows="2" placeholder="Funciones" value={w.functions || ''} onChange={(e) => setForm((p) => ({ ...p, workExperiences: p.workExperiences.map((x, idx) => idx === i ? { ...x, functions: e.target.value } : x) }))} /></div>
                 </div>
               ))}
