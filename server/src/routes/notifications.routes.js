@@ -6,6 +6,8 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { Notification } from '../models/Notification.js';
+import { MarketplaceRequest } from '../models/MarketplaceRequest.js';
+import { MarketplaceApplication } from '../models/MarketplaceApplication.js';
 
 const router = Router();
 
@@ -16,7 +18,53 @@ router.get('/', async (req, res, next) => {
     const notifications = await Notification.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .limit(100);
-    res.json(notifications);
+
+    if (req.user.role !== 'professional_sst') {
+      return res.json(notifications);
+    }
+
+    const requestNotificationTypes = ['marketplace_match', 'marketplace_reopened'];
+    const requestIds = notifications
+      .filter((n) => requestNotificationTypes.includes(n.type) && n?.payload?.requestId)
+      .map((n) => n.payload.requestId.toString());
+
+    if (!requestIds.length) {
+      return res.json(notifications);
+    }
+
+    const [rejectedRows, respondedIds] = await Promise.all([
+      MarketplaceRequest.find({
+        _id: { $in: requestIds },
+        rejectedProfessionals: req.user._id,
+      }).select('_id'),
+      MarketplaceApplication.find({
+        professional: req.user._id,
+        request: { $in: requestIds },
+      }).distinct('request'),
+    ]);
+
+    const blockedIds = new Set([
+      ...rejectedRows.map((row) => row._id.toString()),
+      ...respondedIds.map((id) => id.toString()),
+    ]);
+
+    if (!blockedIds.size) {
+      return res.json(notifications);
+    }
+
+    const filtered = notifications.filter((n) => {
+      if (!requestNotificationTypes.includes(n.type)) return true;
+      const requestId = n?.payload?.requestId?.toString();
+      return !requestId || !blockedIds.has(requestId);
+    });
+
+    await Notification.deleteMany({
+      user: req.user._id,
+      type: { $in: requestNotificationTypes },
+      'payload.requestId': { $in: Array.from(blockedIds) },
+    });
+
+    res.json(filtered);
   } catch (err) {
     next(err);
   }
