@@ -107,6 +107,39 @@ export default function NotificationsMenu() {
     }
   };
 
+  const isRejectableNotification = (notification) =>
+    Boolean(
+      isProfessional
+      && ['marketplace_match', 'marketplace_reopened'].includes(notification?.type)
+      && notification?.payload?.requestId
+    );
+
+  const removeRequestNotifications = (requestId) => {
+    setItems((prev) => prev.filter(
+      (n) => !(['marketplace_match', 'marketplace_reopened'].includes(n.type) && n?.payload?.requestId === requestId)
+    ));
+  };
+
+  const rejectFromNotification = async (notification) => {
+    const requestId = notification?.payload?.requestId;
+    if (!requestId) return;
+
+    setBusyId(notification._id);
+    try {
+      await api.post(`/marketplace/requests/${requestId}/reject`);
+      removeRequestNotifications(requestId);
+    } catch (err) {
+      const status = err?.response?.status;
+      if ([400, 404, 409].includes(status)) {
+        removeRequestNotifications(requestId);
+        return;
+      }
+      console.error('Error rechazando oportunidad desde notificacion', err);
+    } finally {
+      setBusyId('');
+    }
+  };
+
   const getNotificationTarget = (notification) => {
     const payload = notification?.payload || {};
     const params = new URLSearchParams();
@@ -212,19 +245,34 @@ export default function NotificationsMenu() {
                     <small className="text-muted">{formatRelative(n.createdAt)}</small>
                   </div>
                   <p className="notif-item__message mb-1">{n.message}</p>
-                  {!n.readAt && (
-                    <button
-                      type="button"
-                      className="btn btn-link btn-sm p-0 text-decoration-none"
-                      disabled={busyId === n._id}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        markOneAsRead(n._id);
-                      }}
-                    >
-                      Marcar como leida
-                    </button>
-                  )}
+                  <div className="d-flex gap-3 align-items-center">
+                    {!n.readAt && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 text-decoration-none"
+                        disabled={busyId === n._id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          markOneAsRead(n._id);
+                        }}
+                      >
+                        Marcar como leida
+                      </button>
+                    )}
+                    {isRejectableNotification(n) && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 text-danger text-decoration-none"
+                        disabled={busyId === n._id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          rejectFromNotification(n);
+                        }}
+                      >
+                        Rechazar solicitud
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
