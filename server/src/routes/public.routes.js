@@ -45,9 +45,6 @@ function hasCoverage(prof, selectedCity, normalizedCityText) {
 
 function getCoveragePriority(prof, selectedCity, normalizedCityText) {
   const mode = prof.geographicAvailability || 'city_only';
-  const nationwide = mode === 'nationwide' || !!prof.canTravel;
-  if (nationwide) return 3;
-
   const sameCityByCode =
     !!selectedCity &&
     (prof.cityCode === selectedCity.cityCode || (prof.serviceMunicipalityCodes || []).includes(selectedCity.cityCode));
@@ -66,6 +63,9 @@ function getCoveragePriority(prof, selectedCity, normalizedCityText) {
     (prof.departmentCode === selectedCity.departmentCode ||
       (prof.serviceDepartmentCodes || []).includes(selectedCity.departmentCode));
   if (byDepartment) return 2;
+
+  const nationwide = mode === 'nationwide' || !!prof.canTravel;
+  if (nationwide) return 3;
 
   return 4;
 }

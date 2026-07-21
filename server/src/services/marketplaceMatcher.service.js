@@ -103,9 +103,6 @@ function hasCoverageForCity(profile, requestedCity, requestedCityText) {
 function getGeographicPriority(profile, requestedCity, requestedCityText) {
   const p = profile || {};
   const mode = p.geographicAvailability || 'city_only';
-  const nationwide = mode === 'nationwide' || !!p.canTravel;
-  if (nationwide) return 3;
-
   if (!requestedCity && !requestedCityText) return 1;
 
   const sameCityByCode =
@@ -118,6 +115,15 @@ function getGeographicPriority(profile, requestedCity, requestedCityText) {
   if (sameCityByCode || sameCityByText) {
     return p.cityCode === requestedCity?.cityCode || normalizeLocationText(p.city) === requestedCityText ? 1 : 2;
   }
+
+  const inRequestedDepartment =
+    !!requestedCity &&
+    (p.departmentCode === requestedCity.departmentCode ||
+      (p.serviceDepartmentCodes || []).includes(requestedCity.departmentCode));
+  if (inRequestedDepartment) return 2;
+
+  const nationwide = mode === 'nationwide' || !!p.canTravel;
+  if (nationwide) return 3;
 
   return 4;
 }
@@ -242,13 +248,13 @@ export async function findMatchingProfessionals(request) {
         professionalProfile: p,
         certificationsCount: certs.length,
         geographicPriority: getGeographicPriority(p, requestedCity, requestedCityText),
-        geographicMatch:
-          p.geographicAvailability === 'nationwide' || p.canTravel
-            ? 'nationwide'
-            : (requestedCity && p.cityCode === requestedCity.cityCode) ||
-                (requestedCity && (p.serviceMunicipalityCodes || []).includes(requestedCity.cityCode))
-              ? 'city'
-              : 'department',
+        geographicMatch: (() => {
+          const priority = getGeographicPriority(p, requestedCity, requestedCityText);
+          if (priority === 1) return 'city';
+          if (priority === 2) return 'department';
+          if (priority === 3) return 'nationwide';
+          return 'none';
+        })(),
         score,
       };
     })
