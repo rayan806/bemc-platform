@@ -169,6 +169,8 @@ export default function RequestProfessionalWorkspace() {
   const request = detail?.request || {};
   const application = detail?.application || {};
   const contractUrl = application?.contractDownloadUrl || application?.contractFileUrl || detail?.assignment?.contractFileUrl || '';
+  const contractFileName = application?.contractFileName || application?.contractFileUrl?.split('/')?.pop() || '';
+  const contractUpdatedAt = application?.updatedAt || '';
 
   return (
     <div className="d-grid gap-3">
@@ -227,6 +229,16 @@ export default function RequestProfessionalWorkspace() {
                 className="form-control"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
               />
+              {selectedFile ? (
+                <div className="form-text text-primary">Archivo seleccionado: {selectedFile.name}</div>
+              ) : contractUrl ? (
+                <div className="form-text text-success">
+                  Archivo subido: {contractFileName || 'Contrato PDF'}
+                  {contractUpdatedAt ? ` (${new Date(contractUpdatedAt).toLocaleString('es-CO')})` : ''}
+                </div>
+              ) : (
+                <div className="form-text text-muted">Ningun archivo seleccionado.</div>
+              )}
             </div>
             <div className="col-md-4">
               <button className="btn btn-bemc w-100" type="submit" disabled={!selectedFile || uploadingPdf}>
