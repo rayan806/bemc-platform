@@ -9,6 +9,7 @@ function formatMoney(v) {
 export default function CompanyApplications() {
   const [requests, setRequests] = useState([]);
   const [appsByReq, setAppsByReq] = useState({});
+  const [matchesByReq, setMatchesByReq] = useState({});
 
   useEffect(() => {
     api.get('/marketplace/requests').then((r) => setRequests((r.data || []).filter((x) => ['published', 'in_postulation', 'professional_selected'].includes(x.status))));
@@ -17,6 +18,15 @@ export default function CompanyApplications() {
   const loadApps = async (requestId) => {
     const { data } = await api.get(`/marketplace/requests/${requestId}/applications`);
     setAppsByReq((p) => ({ ...p, [requestId]: data || [] }));
+  };
+
+  const loadMatches = async (requestId) => {
+    const { data } = await api.get(`/marketplace/requests/${requestId}/matches`);
+    setMatchesByReq((p) => ({ ...p, [requestId]: data || [] }));
+  };
+
+  const loadCandidates = async (requestId) => {
+    await Promise.all([loadApps(requestId), loadMatches(requestId)]);
   };
 
   const selectPro = async (requestId, professionalId) => {
@@ -33,10 +43,33 @@ export default function CompanyApplications() {
         <div key={r._id} className="card card-bemc p-3 mb-3">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <h3 className="h6 mb-0">{r.requiredProfessionalType} - {r.city}</h3>
-            <button className="btn btn-sm btn-outline-primary" onClick={() => loadApps(r._id)}>Cargar candidatos</button>
+            <button className="btn btn-sm btn-outline-primary" onClick={() => loadCandidates(r._id)}>Cargar candidatos</button>
           </div>
           {(appsByReq[r._id] || []).length === 0 ? (
-            <p className="small text-muted mb-0">Aun no hay postulaciones para esta solicitud.</p>
+            <div>
+              <p className="small text-muted mb-2">Aun no hay postulaciones para esta solicitud.</p>
+              {(matchesByReq[r._id] || []).length > 0 && (
+                <div>
+                  <div className="small fw-semibold mb-2">Profesionales sugeridos ({(matchesByReq[r._id] || []).length})</div>
+                  <div className="row g-2">
+                    {(matchesByReq[r._id] || []).slice(0, 6).map((m) => (
+                      <div className="col-xl-6" key={m._id}>
+                        <div className="border rounded p-2 bg-white h-100">
+                          <div className="fw-semibold">{m.profile?.firstName || ''} {m.profile?.lastName || ''}</div>
+                          <div className="small text-muted mb-1">{m.professionalProfile?.mainProfession || 'Profesional SST'}</div>
+                          <div className="small text-muted">Ciudad: {m.profile?.city || m.professionalProfile?.city || 'No definida'}</div>
+                          <div className="small text-muted">Score de match: {Number(m.score || 0).toFixed(1)}</div>
+                          <div className="small text-muted mb-2">Esperando su postulación para poder seleccionarlo.</div>
+                          <Link className="btn btn-sm btn-outline-secondary" to={`/profesionales-sst/${m._id}`} target="_blank" rel="noreferrer">
+                            Ver perfil completo
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="row g-3">
               {(appsByReq[r._id] || []).map((a) => (
