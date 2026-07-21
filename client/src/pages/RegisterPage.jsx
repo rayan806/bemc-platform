@@ -11,6 +11,8 @@ import SocialAuthButtons from '../components/auth/SocialAuthButtons';
 import PasswordInput from '../components/auth/PasswordInput';
 import LocationAutocomplete from '../components/locations/LocationAutocomplete';
 
+const PROFESSIONAL_TYPE_OPTIONS = ['Profesional SST', 'Tecnologo SST'];
+
 // Componente principal de esta vista.
 export default function RegisterPage() {
   const [accountType, setAccountType] = useState('person');
@@ -67,8 +69,8 @@ export default function RegisterPage() {
       setError('Selecciona la ciudad de la empresa desde la lista');
       return;
     }
-    if (accountType === 'professional' && !form.mainProfession.trim()) {
-      setError('Para profesional SST indica tu profesion principal');
+    if (accountType === 'professional' && !PROFESSIONAL_TYPE_OPTIONS.includes(form.mainProfession)) {
+      setError('Para profesional SST selecciona una profesion valida');
       return;
     }
     if (accountType === 'professional' && !form.cityLocation) {
@@ -98,8 +100,8 @@ export default function RegisterPage() {
     }
 
     if (accountType === 'professional') {
-      payload.mainProfession = form.mainProfession.trim();
-      payload.mainRole = form.mainProfession.trim();
+      payload.mainProfession = form.mainProfession;
+      payload.mainRole = form.mainProfession;
       payload.yearsExperience = Number(form.yearsExperience || 0);
       payload.experienceSummary = form.experienceSummary.trim();
       payload.licenseNumber = form.licenseNumber.trim();
@@ -259,13 +261,17 @@ export default function RegisterPage() {
         {accountType === 'professional' && (
           <div className="auth-expand">
             <div className="auth-field">
-              <input
+              <select
                 className="auth-input"
-                placeholder="Profesion principal (ej. Profesional SST)"
                 value={form.mainProfession}
                 onChange={update('mainProfession')}
                 required
-              />
+              >
+                <option value="">Selecciona tu profesion principal</option>
+                {PROFESSIONAL_TYPE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
             </div>
             <div className="auth-field">
               <input

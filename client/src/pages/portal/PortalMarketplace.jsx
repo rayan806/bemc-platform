@@ -26,6 +26,8 @@ const assignmentStatuses = {
   cancelled: 'Cancelada',
 };
 
+const professionalTypeOptions = ['Profesional SST', 'Tecnologo SST'];
+
 const geographicAvailabilityOptions = [
   { value: 'city_only', label: 'Solo en mi ciudad' },
   { value: 'city_nearby', label: 'En mi ciudad y municipios cercanos' },
@@ -103,6 +105,12 @@ function licensesToText(licenses) {
   return (licenses || [])
     .map((l) => `${l.name || ''}|${l.number || ''}|${l.expiryDate ? String(l.expiryDate).slice(0, 10) : ''}`)
     .join('\n');
+}
+
+function normalizeProfessionalType(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (text.includes('tecnolog')) return 'Tecnologo SST';
+  return 'Profesional SST';
 }
 
 function StatusBadge({ value, map }) {
@@ -202,9 +210,10 @@ export default function PortalMarketplace() {
 
         const p = meRes.data?.user?.professionalProfile || {};
         const baseProfile = meRes.data?.user?.profile || {};
+        const normalizedType = normalizeProfessionalType(p.mainProfession || p.mainRole);
         setProfessionalProfile({
-          mainProfession: p.mainProfession || '',
-          mainRole: p.mainRole || '',
+          mainProfession: normalizedType,
+          mainRole: normalizedType,
           yearsExperience: p.yearsExperience || 0,
           experienceSummary: p.experienceSummary || '',
           licenseNumber: p.licenseNumber || '',
@@ -337,8 +346,8 @@ export default function PortalMarketplace() {
           avatarUrl: professionalProfile.avatarUrl,
         },
         professionalProfile: {
-          mainProfession: professionalProfile.mainProfession,
-          mainRole: professionalProfile.mainRole,
+          mainProfession: normalizeProfessionalType(professionalProfile.mainProfession),
+          mainRole: normalizeProfessionalType(professionalProfile.mainRole || professionalProfile.mainProfession),
           yearsExperience: Number(professionalProfile.yearsExperience || 0),
           experienceSummary: professionalProfile.experienceSummary,
           licenseNumber: professionalProfile.licenseNumber,
@@ -524,8 +533,29 @@ export default function PortalMarketplace() {
           <div className="card card-bemc p-3 mb-4">
             <h2 className="h5 mb-3">Mi perfil profesional SST</h2>
             <form className="row g-2" onSubmit={saveProfessionalData}>
-              <div className="col-md-6"><input className="form-control" placeholder="Profesion principal" value={professionalProfile.mainProfession} onChange={(e) => setProfessionalProfile((p) => ({ ...p, mainProfession: e.target.value }))} required /></div>
-              <div className="col-md-6"><input className="form-control" placeholder="Rol principal" value={professionalProfile.mainRole} onChange={(e) => setProfessionalProfile((p) => ({ ...p, mainRole: e.target.value }))} /></div>
+              <div className="col-md-6">
+                <select
+                  className="form-select"
+                  value={professionalProfile.mainProfession}
+                  onChange={(e) => setProfessionalProfile((p) => ({ ...p, mainProfession: e.target.value, mainRole: e.target.value }))}
+                  required
+                >
+                  {professionalTypeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <select
+                  className="form-select"
+                  value={professionalProfile.mainRole}
+                  onChange={(e) => setProfessionalProfile((p) => ({ ...p, mainRole: e.target.value, mainProfession: e.target.value }))}
+                >
+                  {professionalTypeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
               <div className="col-md-3"><input type="number" min="0" className="form-control" placeholder="Años experiencia" value={professionalProfile.yearsExperience} onChange={(e) => setProfessionalProfile((p) => ({ ...p, yearsExperience: e.target.value }))} /></div>
               <div className="col-md-3"><input className="form-control" placeholder="Licencia principal" value={professionalProfile.licenseNumber} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licenseNumber: e.target.value }))} /></div>
               <div className="col-md-3"><input type="date" className="form-control" value={professionalProfile.licenseExpiryDate} onChange={(e) => setProfessionalProfile((p) => ({ ...p, licenseExpiryDate: e.target.value }))} /></div>

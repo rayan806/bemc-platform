@@ -5,6 +5,7 @@ import LocationAutocomplete from '../../components/locations/LocationAutocomplet
 const areasOptions = ['Construccion', 'Industria', 'Mineria', 'Petroleo', 'Energia', 'Manufactura', 'Transporte', 'Salud', 'Educacion', 'Agroindustria', 'Otras'];
 const servicesOptions = ['SISO por dias', 'SISO tiempo completo', 'Inspector SST', 'Coordinador de Trabajo en Alturas', 'Auditor SG-SST', 'Capacitaciones', 'Investigacion de accidentes', 'Elaboracion de documentos SG-SST', 'Inspecciones', 'Consultoria', 'Otros'];
 const expectedCertificationTypes = ['licencia_sst', 'coordinador_alturas', 'curso_50h', 'curso_20h', 'espacios_confinados', 'primeros_auxilios', 'otra'];
+const professionalTypeOptions = ['Profesional SST', 'Tecnologo SST'];
 const geographicAvailabilityOptions = [
   { value: 'city_only', label: 'Solo en mi ciudad' },
   { value: 'city_nearby', label: 'En mi ciudad y municipios cercanos' },
@@ -95,6 +96,12 @@ function geographicLabel(value) {
   return geographicAvailabilityOptions.find((opt) => opt.value === value)?.label || 'Solo en mi ciudad';
 }
 
+function normalizeProfessionalType(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (text.includes('tecnolog')) return 'Tecnologo SST';
+  return 'Profesional SST';
+}
+
 export default function ProfessionalProfile() {
   const [form, setForm] = useState(null);
   const [completion, setCompletion] = useState({ percentage: 0, recommendations: [] });
@@ -107,6 +114,7 @@ export default function ProfessionalProfile() {
     const { data } = await api.get('/marketplace/professionals/me');
     const p = data?.user?.professionalProfile || {};
     const base = data?.user?.profile || {};
+    const normalizedType = normalizeProfessionalType(p.mainProfession || p.mainRole);
     setForm({
       firstName: base.firstName || '',
       lastName: base.lastName || '',
@@ -132,8 +140,8 @@ export default function ProfessionalProfile() {
       whatsapp: base.whatsapp || '',
       bio: base.bio || p.experienceSummary || '',
       avatarUrl: base.avatarUrl || '',
-      mainProfession: p.mainProfession || '',
-      mainRole: p.mainRole || '',
+      mainProfession: normalizedType,
+      mainRole: normalizedType,
       specialty: p.specialty || '',
       yearsExperience: p.yearsExperience || 0,
       licenseNumber: p.licenseNumber || '',
@@ -436,8 +444,29 @@ export default function ProfessionalProfile() {
             <div className="card card-bemc p-3">
               <h3 className="h6 mb-2">Informacion profesional</h3>
               <div className="row g-2">
-                <div className="col-md-4"><input className="form-control" placeholder="Profesion" value={form.mainProfession} onChange={(e) => setForm((p) => ({ ...p, mainProfession: e.target.value }))} required /></div>
-                <div className="col-md-4"><input className="form-control" placeholder="Cargo principal" value={form.mainRole} onChange={(e) => setForm((p) => ({ ...p, mainRole: e.target.value }))} /></div>
+                <div className="col-md-4">
+                  <select
+                    className="form-select"
+                    value={form.mainProfession}
+                    onChange={(e) => setForm((p) => ({ ...p, mainProfession: e.target.value, mainRole: e.target.value }))}
+                    required
+                  >
+                    {professionalTypeOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-4">
+                  <select
+                    className="form-select"
+                    value={form.mainRole}
+                    onChange={(e) => setForm((p) => ({ ...p, mainRole: e.target.value, mainProfession: e.target.value }))}
+                  >
+                    {professionalTypeOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="col-md-4"><input className="form-control" placeholder="Especialidad" value={form.specialty} onChange={(e) => setForm((p) => ({ ...p, specialty: e.target.value }))} /></div>
                 <div className="col-md-2"><input type="number" min="0" className="form-control" placeholder="Anios" value={form.yearsExperience} onChange={(e) => setForm((p) => ({ ...p, yearsExperience: e.target.value }))} /></div>
                 <div className="col-md-3"><input className="form-control" placeholder="Licencia SST" value={form.licenseNumber} onChange={(e) => setForm((p) => ({ ...p, licenseNumber: e.target.value }))} /></div>
