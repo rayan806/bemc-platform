@@ -81,6 +81,14 @@ export default function ProfessionalOpportunities() {
       await api.post(`/marketplace/requests/${id}/reject`);
       window.dispatchEvent(new CustomEvent('marketplace:request-rejected', { detail: { requestId: id } }));
       setRows((prev) => prev.filter((row) => row._id !== id));
+    } catch (err) {
+      const status = err?.response?.status;
+      if ([400, 404, 409].includes(status)) {
+        window.dispatchEvent(new CustomEvent('marketplace:request-rejected', { detail: { requestId: id } }));
+        setRows((prev) => prev.filter((row) => row._id !== id));
+        return;
+      }
+      alert(err.response?.data?.message || 'No se pudo rechazar la solicitud');
     } finally {
       setBusyId('');
     }

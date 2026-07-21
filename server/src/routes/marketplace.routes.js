@@ -912,8 +912,14 @@ router.get('/opportunities', async (req, res, next) => {
       return res.status(403).json({ message: 'Solo profesionales SST' });
     }
 
+    const respondedRequestIds = await MarketplaceApplication.find({
+      professional: req.user._id,
+    }).distinct('request');
+
     const openRequests = await MarketplaceRequest.find({
       status: { $in: ['published', 'in_postulation'] },
+      rejectedProfessionals: { $ne: req.user._id },
+      _id: { $nin: respondedRequestIds },
     })
       .populate('company')
       .populate('createdBy', 'email profile')
@@ -921,9 +927,6 @@ router.get('/opportunities', async (req, res, next) => {
 
     const opportunities = [];
     for (const request of openRequests) {
-      if ((request.rejectedProfessionals || []).some((row) => row.toString() === req.user._id.toString())) {
-        continue;
-      }
       const matches = await findMatchingProfessionals(request);
       if (matches.some((p) => p._id.toString() === req.user._id.toString())) {
         opportunities.push(request);
