@@ -1455,7 +1455,7 @@ router.get('/request-professional/:requestId/:professionalId/contract-file', asy
     const application = await MarketplaceApplication.findOne({
       request: workspace.request._id,
       professional: professionalId,
-    }).select('contractFileUrl contractFileName contractFileMime contractFileData');
+    }).select('contractFileUrl contractFileName contractFileMime contractFileData contractHistory');
 
     if (!application) {
       return res.status(404).json({ message: 'Contrato no encontrado' });
