@@ -207,6 +207,7 @@ export default function RequestProfessionalWorkspace() {
       versionIndex: row.versionIndex ?? index,
     })),
   ];
+  const uploadLocked = contractFiles.length >= 2;
 
   return (
     <div className="d-grid gap-3">
@@ -292,6 +293,7 @@ export default function RequestProfessionalWorkspace() {
                 type="file"
                 accept="application/pdf,.pdf"
                 className="form-control"
+                disabled={uploadLocked || uploadingPdf}
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
               />
               {selectedFile ? (
@@ -304,10 +306,14 @@ export default function RequestProfessionalWorkspace() {
               ) : (
                 <div className="form-text text-muted">Ningun archivo seleccionado.</div>
               )}
-              <div className="form-text text-muted">Maximo 2 archivos de contrato por solicitud.</div>
+              {uploadLocked ? (
+                <div className="form-text text-warning">Ya hay 2 archivos cargados. Elimina uno para habilitar la carga.</div>
+              ) : (
+                <div className="form-text text-muted">Maximo 2 archivos de contrato por solicitud.</div>
+              )}
             </div>
             <div className="col-md-4">
-              <button className="btn btn-bemc w-100" type="submit" disabled={!selectedFile || uploadingPdf || contractFiles.length >= 2}>
+              <button className="btn btn-bemc w-100" type="submit" disabled={!selectedFile || uploadingPdf || uploadLocked}>
                 {uploadingPdf ? 'Subiendo...' : 'Cargar contrato PDF'}
               </button>
             </div>
