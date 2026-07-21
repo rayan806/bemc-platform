@@ -169,6 +169,9 @@ async function notifyCompatibleProfessionals(
   } = {}
 ) {
   const rejectedIds = new Set((request.rejectedProfessionals || []).map((row) => row.toString()));
+  const respondedIds = new Set(
+    (await MarketplaceApplication.find({ request: request._id }).distinct('professional')).map((id) => id.toString())
+  );
   const strictMatches = await findMatchingProfessionals(request);
   const immediateCityMatches = await findImmediateCityProfessionals(request);
   const uniqueMap = new Map();
@@ -183,9 +186,10 @@ async function notifyCompatibleProfessionals(
     }
   });
 
-  const matches = Array.from(uniqueMap.values()).filter(
-    (row) => !rejectedIds.has(row._id.toString())
-  );
+  const matches = Array.from(uniqueMap.values()).filter((row) => {
+    const professionalId = row._id.toString();
+    return !rejectedIds.has(professionalId) && !respondedIds.has(professionalId);
+  });
   if (!matches.length) return { matched: 0, notified: 0 };
 
   const matchedUserIds = matches.map((row) => row._id);
