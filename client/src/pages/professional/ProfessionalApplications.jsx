@@ -10,6 +10,12 @@ const labels = {
   closed: 'Finalizado',
 };
 
+function statusClass(status) {
+  if (status === 'selected') return 'text-bg-success';
+  if (status === 'active') return 'text-bg-danger';
+  return 'text-bg-secondary';
+}
+
 export default function ProfessionalApplications() {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
@@ -30,7 +36,11 @@ export default function ProfessionalApplications() {
                 <td>{a.request?.requiredProfessionalType || 'SST'}</td>
                 <td>{a.request?.company?.legalName || 'Empresa'}</td>
                 <td>{a.economicProposal}</td>
-                <td>{labels[a.status] || a.status}</td>
+                <td>
+                  <span className={`badge ${statusClass(a.status)}`}>
+                    {labels[a.status] || a.status}
+                  </span>
+                </td>
                 <td>
                   {a.request?._id && (user?._id || user?.id) ? (
                     <Link className="btn btn-sm btn-outline-primary" to={`/profesional/espacio/${a.request._id}/${user?._id || user?.id}`}>
