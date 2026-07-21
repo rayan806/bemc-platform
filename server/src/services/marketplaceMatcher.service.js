@@ -14,6 +14,15 @@ function normalize(text) {
   return (text || '').toString().trim().toLowerCase();
 }
 
+function isSstText(text) {
+  const value = normalize(text);
+  return (
+    value.includes('sst') ||
+    value.includes('seguridad y salud en el trabajo') ||
+    value.includes('salud ocupacional')
+  );
+}
+
 function hasValidSstLicense(profile) {
   const singleValid =
     profile?.licenseNumber &&
@@ -74,11 +83,21 @@ export async function findMatchingProfessionals(request) {
     const profession = normalize(p.mainProfession);
     const mainRole = normalize(p.mainRole);
     const services = (p.servicesOffered || []).map(normalize);
+    const specialty = normalize(p.specialty);
     if (!requiredType) return true;
+
+    const requiresSst = isSstText(requiredType) || isSstText(requiredService);
+    const hasSstProfile =
+      isSstText(profession) ||
+      isSstText(mainRole) ||
+      isSstText(specialty) ||
+      services.some((s) => isSstText(s));
+
     return (
       profession.includes(requiredType) ||
       mainRole.includes(requiredType) ||
-      services.some((s) => s.includes(requiredService) || requiredService.includes(s))
+      services.some((s) => s.includes(requiredService) || requiredService.includes(s)) ||
+      (requiresSst && hasSstProfile)
     );
   });
 
