@@ -33,6 +33,7 @@ export default function RequestProfessionalWorkspace() {
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [openingPdf, setOpeningPdf] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState('');
 
   const isCompany = user?.role === 'client';
 
@@ -113,14 +114,15 @@ export default function RequestProfessionalWorkspace() {
     }
   };
 
-  const openContractPdf = async () => {
-    if (!contractUrl) return;
+  const openContractPdf = async (urlOverride) => {
+    const targetUrl = urlOverride || contractUrl;
+    if (!targetUrl) return;
 
     setOpeningPdf(true);
     try {
       const token = window.localStorage.getItem('bemc_token');
-      const response = await fetch(contractUrl, {
-        headers: contractUrl.startsWith('/api/') && token
+      const response = await fetch(targetUrl, {
+        headers: targetUrl.startsWith('/api/') && token
           ? { Authorization: `Bearer ${token}` }
           : undefined,
       });
@@ -144,6 +146,22 @@ export default function RequestProfessionalWorkspace() {
       alert(err.message || 'No se pudo abrir el contrato PDF');
     } finally {
       setOpeningPdf(false);
+    }
+  };
+
+  const deleteContractFile = async (file) => {
+    if (!file) return;
+    if (!window.confirm('Eliminar este archivo de contrato?')) return;
+
+    const query = file.versionIndex !== undefined ? `?version=${file.versionIndex}` : '';
+    setDeletingFileId(file.id);
+    try {
+      await api.delete(`${endpointBase}/contract-file${query}`);
+      await loadDetail();
+    } catch (err) {
+      alert(err.response?.data?.message || 'No se pudo eliminar el archivo');
+    } finally {
+      setDeletingFileId('');
     }
   };
 
@@ -171,6 +189,24 @@ export default function RequestProfessionalWorkspace() {
   const contractUrl = application?.contractDownloadUrl || application?.contractFileUrl || detail?.assignment?.contractFileUrl || '';
   const contractFileName = application?.contractFileName || application?.contractFileUrl?.split('/')?.pop() || '';
   const contractUpdatedAt = application?.updatedAt || '';
+  const contractHistory = Array.isArray(application?.contractHistory) ? application.contractHistory : [];
+  const contractFiles = [
+    ...(contractUrl
+      ? [{
+        id: 'current',
+        title: contractFileName || 'Contrato actual',
+        uploadedAt: contractUpdatedAt,
+        downloadUrl: contractUrl,
+      }]
+      : []),
+    ...contractHistory.map((row, index) => ({
+      id: `history-${row.versionIndex ?? index}`,
+      title: row.fileName || `Contrato ${index + 1}`,
+      uploadedAt: row.uploadedAt,
+      downloadUrl: row.downloadUrl,
+      versionIndex: row.versionIndex ?? index,
+    })),
+  ];
 
   return (
     <div className="d-grid gap-3">
@@ -208,16 +244,45 @@ export default function RequestProfessionalWorkspace() {
 
       <div className="card card-bemc p-3">
         <h3 className="h6 mb-3">Contrato PDF</h3>
-        {contractUrl ? (
+        {contractFiles.length > 0 ? (
           <div className="alert alert-success py-2">
-            Contrato actual:{' '}
-            <button type="button" className="btn btn-link p-0 align-baseline" onClick={openContractPdf} disabled={openingPdf}>
-              {openingPdf ? 'Abriendo...' : 'Ver PDF'}
-            </button>
+            Archivo subido. Puedes abrirlo o eliminarlo.
           </div>
         ) : (
           <p className="text-muted small">Aun no hay contrato cargado.</p>
         )}
+
+        {contractFiles.length > 0 ? (
+          <div className="d-flex flex-column gap-1 mt-2">
+            {contractFiles.map((file) => (
+              <div key={file.id} className="border rounded p-2 d-flex justify-content-between align-items-center gap-2">
+                <div className="small">
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm p-0 align-baseline"
+                    onClick={() => openContractPdf(file.downloadUrl)}
+                    disabled={openingPdf}
+                  >
+                    {file.title}
+                  </button>
+                  <span className="text-muted">{file.uploadedAt ? ` · ${new Date(file.uploadedAt).toLocaleString('es-CO')}` : ''}</span>
+                </div>
+                {isCompany ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    title="Eliminar archivo"
+                    onClick={() => deleteContractFile(file)}
+                    disabled={deletingFileId === file.id}
+                    style={{ lineHeight: 1 }}
+                  >
+                    <i className="bi bi-trash" />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {isCompany ? (
           <form className="row g-2 align-items-end" onSubmit={uploadContract}>
@@ -231,7 +296,7 @@ export default function RequestProfessionalWorkspace() {
               />
               {selectedFile ? (
                 <div className="form-text text-primary">Archivo seleccionado: {selectedFile.name}</div>
-              ) : contractUrl ? (
+              ) : contractFiles.length > 0 ? (
                 <div className="form-text text-success">
                   Archivo subido: {contractFileName || 'Contrato PDF'}
                   {contractUpdatedAt ? ` (${new Date(contractUpdatedAt).toLocaleString('es-CO')})` : ''}
@@ -239,9 +304,10 @@ export default function RequestProfessionalWorkspace() {
               ) : (
                 <div className="form-text text-muted">Ningun archivo seleccionado.</div>
               )}
+              <div className="form-text text-muted">Maximo 2 archivos de contrato por solicitud.</div>
             </div>
             <div className="col-md-4">
-              <button className="btn btn-bemc w-100" type="submit" disabled={!selectedFile || uploadingPdf}>
+              <button className="btn btn-bemc w-100" type="submit" disabled={!selectedFile || uploadingPdf || contractFiles.length >= 2}>
                 {uploadingPdf ? 'Subiendo...' : 'Cargar contrato PDF'}
               </button>
             </div>

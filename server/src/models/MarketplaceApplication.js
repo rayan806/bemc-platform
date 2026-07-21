@@ -28,6 +28,16 @@ const marketplaceApplicationSchema = new mongoose.Schema(
     contractFileName: { type: String, trim: true },
     contractFileMime: { type: String, trim: true },
     contractFileData: { type: Buffer },
+    contractHistory: [
+      {
+        fileUrl: { type: String, trim: true },
+        fileName: { type: String, trim: true },
+        fileMime: { type: String, trim: true },
+        fileData: { type: Buffer },
+        uploadedAt: { type: Date, default: Date.now },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      },
+    ],
     status: {
       type: String,
       enum: MARKETPLACE_APPLICATION_STATUSES,

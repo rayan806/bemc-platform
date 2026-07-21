@@ -1394,9 +1394,29 @@ router.get('/request-professional/:requestId/:professionalId', async (req, res, 
     }
 
     const { request, professional, application, assignment } = workspace;
-    const appObj = application ? application.toObject() : null;
-    if (appObj?.contractFileUrl || appObj?.contractFileData) {
-      appObj.contractDownloadUrl = `/api/marketplace/request-professional/${request._id}/${professional._id}/contract-file`;
+    let applicationView = null;
+
+    if (application) {
+      const history = (application.contractHistory || []).map((row, index) => ({
+        versionIndex: index,
+        fileName: row.fileName || row.fileUrl?.split('/')?.pop() || `Contrato ${index + 1}`,
+        uploadedAt: row.uploadedAt || null,
+        downloadUrl: `/api/marketplace/request-professional/${request._id}/${professional._id}/contract-file?version=${index}`,
+      }));
+
+      applicationView = {
+        _id: application._id,
+        status: application.status,
+        economicProposal: application.economicProposal,
+        contractFileUrl: application.contractFileUrl,
+        contractFileName: application.contractFileName,
+        updatedAt: application.updatedAt,
+        contractDownloadUrl:
+          application.contractFileUrl || application.contractFileData
+            ? `/api/marketplace/request-professional/${request._id}/${professional._id}/contract-file`
+            : '',
+        contractHistory: history,
+      };
     }
 
     res.json({
@@ -1416,7 +1436,7 @@ router.get('/request-professional/:requestId/:professionalId', async (req, res, 
         contactPhone: request.contactPhone,
       },
       professional,
-      application: appObj,
+      application: applicationView,
       assignment,
     });
   } catch (err) {
@@ -1437,21 +1457,50 @@ router.get('/request-professional/:requestId/:professionalId/contract-file', asy
       professional: professionalId,
     }).select('contractFileUrl contractFileName contractFileMime contractFileData');
 
-    if (!application || (!application.contractFileData && !application.contractFileUrl)) {
+    if (!application) {
       return res.status(404).json({ message: 'Contrato no encontrado' });
     }
 
-    if (application.contractFileData?.length) {
-      const fileName = application.contractFileName || 'contrato.pdf';
-      const mime = application.contractFileMime || 'application/pdf';
-      res.setHeader('Content-Type', mime);
-      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
-      return res.send(application.contractFileData);
+    const versionRaw = req.query.version;
+    let source = {
+      fileData: application.contractFileData,
+      fileName: application.contractFileName,
+      fileMime: application.contractFileMime,
+      fileUrl: application.contractFileUrl,
+    };
+
+    if (versionRaw !== undefined) {
+      const versionIndex = Number(versionRaw);
+      if (!Number.isInteger(versionIndex) || versionIndex < 0) {
+        return res.status(400).json({ message: 'Version de contrato invalida' });
+      }
+      const versionRow = (application.contractHistory || [])[versionIndex];
+      if (!versionRow) {
+        return res.status(404).json({ message: 'Version de contrato no encontrada' });
+      }
+      source = {
+        fileData: versionRow.fileData,
+        fileName: versionRow.fileName,
+        fileMime: versionRow.fileMime,
+        fileUrl: versionRow.fileUrl,
+      };
     }
 
-    const relativeContractPath = String(application.contractFileUrl || '').replace(/^\/+/, '');
+    if (!source.fileData && !source.fileUrl) {
+      return res.status(404).json({ message: 'Contrato no encontrado' });
+    }
+
+    if (source.fileData?.length) {
+      const fileName = source.fileName || 'contrato.pdf';
+      const mime = source.fileMime || 'application/pdf';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      return res.send(source.fileData);
+    }
+
+    const relativeContractPath = String(source.fileUrl || '').replace(/^\/+/, '');
     const absolutePath = path.join(__dirname, '../../', relativeContractPath);
-    if (application.contractFileUrl && fs.existsSync(absolutePath)) {
+    if (source.fileUrl && fs.existsSync(absolutePath)) {
       return res.sendFile(absolutePath);
     }
 
@@ -1486,22 +1535,39 @@ router.post('/request-professional/:requestId/:professionalId/contract-file', (r
 
     const contractFileUrl = `/uploads/contracts/${req.file.filename}`;
     const contractFileData = fs.readFileSync(req.file.path);
-    const application = await MarketplaceApplication.findOneAndUpdate(
-      { request: workspace.request._id, professional: professionalId },
-      {
-        $set: {
-          contractFileUrl,
-          contractFileName: req.file.originalname || req.file.filename,
-          contractFileMime: req.file.mimetype || 'application/pdf',
-          contractFileData,
-        },
-      },
-      { new: true }
-    );
+    const application = await MarketplaceApplication.findOne({
+      request: workspace.request._id,
+      professional: professionalId,
+    });
 
     if (!application) {
       return res.status(404).json({ message: 'La postulación no fue encontrada para este profesional' });
     }
+
+    const hasCurrentFile = Boolean(application.contractFileUrl || application.contractFileData?.length);
+    const historyCount = (application.contractHistory || []).length;
+    const totalFiles = (hasCurrentFile ? 1 : 0) + historyCount;
+    if (totalFiles >= 2) {
+      return res.status(409).json({ message: 'Maximo 2 archivos de contrato. Elimina uno para subir otro.' });
+    }
+
+    if (application.contractFileUrl || application.contractFileData?.length) {
+      application.contractHistory = application.contractHistory || [];
+      application.contractHistory.push({
+        fileUrl: application.contractFileUrl,
+        fileName: application.contractFileName,
+        fileMime: application.contractFileMime,
+        fileData: application.contractFileData,
+        uploadedAt: new Date(),
+        uploadedBy: req.user._id,
+      });
+    }
+
+    application.contractFileUrl = contractFileUrl;
+    application.contractFileName = req.file.originalname || req.file.filename;
+    application.contractFileMime = req.file.mimetype || 'application/pdf';
+    application.contractFileData = contractFileData;
+    await application.save();
 
     await notifyUser(
       professionalId,
@@ -1521,6 +1587,59 @@ router.post('/request-professional/:requestId/:professionalId/contract-file', (r
     });
 
     return res.json({ contractFileUrl, application });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/request-professional/:requestId/:professionalId/contract-file', async (req, res, next) => {
+  try {
+    const { requestId, professionalId } = req.params;
+    const workspace = await resolveWorkspace(req, requestId, professionalId);
+    if (workspace.error) {
+      return res.status(workspace.error.status).json({ message: workspace.error.message });
+    }
+
+    if (!workspace.ownerCompany && !isOperator(req.user)) {
+      return res.status(403).json({ message: 'Solo la empresa puede eliminar contratos' });
+    }
+
+    const application = await MarketplaceApplication.findOne({
+      request: workspace.request._id,
+      professional: professionalId,
+    });
+
+    if (!application) {
+      return res.status(404).json({ message: 'La postulación no fue encontrada para este profesional' });
+    }
+
+    const versionRaw = req.query.version;
+    if (versionRaw !== undefined) {
+      const versionIndex = Number(versionRaw);
+      if (!Number.isInteger(versionIndex) || versionIndex < 0) {
+        return res.status(400).json({ message: 'Version de contrato invalida' });
+      }
+
+      if (!application.contractHistory?.[versionIndex]) {
+        return res.status(404).json({ message: 'Version de contrato no encontrada' });
+      }
+
+      application.contractHistory.splice(versionIndex, 1);
+      await application.save();
+      return res.json({ message: 'Archivo eliminado' });
+    }
+
+    if (!application.contractFileUrl && !application.contractFileData?.length) {
+      return res.status(404).json({ message: 'No hay contrato actual para eliminar' });
+    }
+
+    application.contractFileUrl = '';
+    application.contractFileName = '';
+    application.contractFileMime = '';
+    application.contractFileData = undefined;
+    await application.save();
+
+    return res.json({ message: 'Archivo eliminado' });
   } catch (err) {
     next(err);
   }
