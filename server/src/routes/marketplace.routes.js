@@ -1394,6 +1394,11 @@ router.get('/request-professional/:requestId/:professionalId', async (req, res, 
     }
 
     const { request, professional, application, assignment } = workspace;
+    const appObj = application ? application.toObject() : null;
+    if (appObj?.contractFileUrl || appObj?.contractFileData) {
+      appObj.contractDownloadUrl = `/api/marketplace/request-professional/${request._id}/${professional._id}/contract-file`;
+    }
+
     res.json({
       request: {
         _id: request._id,
@@ -1411,9 +1416,46 @@ router.get('/request-professional/:requestId/:professionalId', async (req, res, 
         contactPhone: request.contactPhone,
       },
       professional,
-      application,
+      application: appObj,
       assignment,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/request-professional/:requestId/:professionalId/contract-file', async (req, res, next) => {
+  try {
+    const { requestId, professionalId } = req.params;
+    const workspace = await resolveWorkspace(req, requestId, professionalId);
+    if (workspace.error) {
+      return res.status(workspace.error.status).json({ message: workspace.error.message });
+    }
+
+    const application = await MarketplaceApplication.findOne({
+      request: workspace.request._id,
+      professional: professionalId,
+    }).select('contractFileUrl contractFileName contractFileMime contractFileData');
+
+    if (!application || (!application.contractFileData && !application.contractFileUrl)) {
+      return res.status(404).json({ message: 'Contrato no encontrado' });
+    }
+
+    if (application.contractFileData?.length) {
+      const fileName = application.contractFileName || 'contrato.pdf';
+      const mime = application.contractFileMime || 'application/pdf';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      return res.send(application.contractFileData);
+    }
+
+    const relativeContractPath = String(application.contractFileUrl || '').replace(/^\/+/, '');
+    const absolutePath = path.join(__dirname, '../../', relativeContractPath);
+    if (application.contractFileUrl && fs.existsSync(absolutePath)) {
+      return res.sendFile(absolutePath);
+    }
+
+    return res.status(404).json({ message: 'Contrato no encontrado en almacenamiento' });
   } catch (err) {
     next(err);
   }
@@ -1443,9 +1485,17 @@ router.post('/request-professional/:requestId/:professionalId/contract-file', (r
     }
 
     const contractFileUrl = `/uploads/contracts/${req.file.filename}`;
+    const contractFileData = fs.readFileSync(req.file.path);
     const application = await MarketplaceApplication.findOneAndUpdate(
       { request: workspace.request._id, professional: professionalId },
-      { $set: { contractFileUrl } },
+      {
+        $set: {
+          contractFileUrl,
+          contractFileName: req.file.originalname || req.file.filename,
+          contractFileMime: req.file.mimetype || 'application/pdf',
+          contractFileData,
+        },
+      },
       { new: true }
     );
 

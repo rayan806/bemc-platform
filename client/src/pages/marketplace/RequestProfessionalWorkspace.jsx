@@ -133,7 +133,7 @@ export default function RequestProfessionalWorkspace() {
   const professionalProfile = professional.professionalProfile || {};
   const request = detail?.request || {};
   const application = detail?.application || {};
-  const contractUrl = application?.contractFileUrl || detail?.assignment?.contractFileUrl || '';
+  const contractUrl = application?.contractDownloadUrl || application?.contractFileUrl || detail?.assignment?.contractFileUrl || '';
 
   return (
     <div className="d-grid gap-3">
