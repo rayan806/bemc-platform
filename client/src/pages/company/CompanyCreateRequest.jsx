@@ -4,17 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import LocationAutocomplete from '../../components/locations/LocationAutocomplete';
 
 const PROFESSIONAL_OPTIONS = [
-  'SISO por dias',
-  'SISO tiempo completo',
-  'Inspector SST',
   'Profesional SST',
   'Tecnologo SST',
-  'Coordinador de Trabajo en Alturas',
-  'Auditor SG-SST',
-  'Capacitador SST',
-  'Investigador de Accidentes',
-  'Medico Laboral',
-  'Otro',
 ];
 
 const EXPERIENCE_OPTIONS = [
