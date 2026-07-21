@@ -86,13 +86,35 @@ router.get('/professionals', async (req, res, next) => {
         const profession = normalize(prof.mainProfession);
         const mainRole = normalize(prof.mainRole);
         const services = (prof.servicesOffered || []).map(normalize);
-        const isSstType = type.includes('sst') || type.includes('seguridad y salud en el trabajo');
+        const isSstType =
+          type.includes('siso') ||
+          type.includes('sst') ||
+          type.includes('sg-sst') ||
+          type.includes('seguridad industrial') ||
+          type.includes('seguridad y salud en el trabajo') ||
+          type.includes('salud ocupacional');
         const sstMatch =
+          profession.includes('siso') ||
           profession.includes('sst') ||
+          profession.includes('sg-sst') ||
+          profession.includes('seguridad industrial') ||
           profession.includes('seguridad y salud en el trabajo') ||
+          profession.includes('salud ocupacional') ||
+          mainRole.includes('siso') ||
           mainRole.includes('sst') ||
+          mainRole.includes('sg-sst') ||
+          mainRole.includes('seguridad industrial') ||
           mainRole.includes('seguridad y salud en el trabajo') ||
-          services.some((s) => s.includes('sst') || s.includes('seguridad y salud en el trabajo'));
+          mainRole.includes('salud ocupacional') ||
+          services.some(
+            (s) =>
+              s.includes('siso') ||
+              s.includes('sst') ||
+              s.includes('sg-sst') ||
+              s.includes('seguridad industrial') ||
+              s.includes('seguridad y salud en el trabajo') ||
+              s.includes('salud ocupacional')
+          );
         if (
           !profession.includes(type) &&
           !mainRole.includes(type) &&

@@ -59,7 +59,14 @@ function normalize(value) {
 
 function isSstText(value) {
   const text = normalize(value);
-  return text.includes('sst') || text.includes('seguridad y salud en el trabajo') || text.includes('salud ocupacional');
+  return (
+    text.includes('siso') ||
+    text.includes('sst') ||
+    text.includes('sg-sst') ||
+    text.includes('seguridad industrial') ||
+    text.includes('seguridad y salud en el trabajo') ||
+    text.includes('salud ocupacional')
+  );
 }
 
 function hasCityCoverage(prof, selectedCity, normalizedCityText) {

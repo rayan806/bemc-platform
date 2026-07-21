@@ -17,7 +17,10 @@ function normalize(text) {
 function isSstText(text) {
   const value = normalize(text);
   return (
+    value.includes('siso') ||
     value.includes('sst') ||
+    value.includes('sg-sst') ||
+    value.includes('seguridad industrial') ||
     value.includes('seguridad y salud en el trabajo') ||
     value.includes('salud ocupacional')
   );
