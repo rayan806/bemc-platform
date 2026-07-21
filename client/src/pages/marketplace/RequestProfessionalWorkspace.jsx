@@ -66,7 +66,11 @@ export default function RequestProfessionalWorkspace() {
 
   useEffect(() => {
     if (!endpointBase) return;
-    const interval = setInterval(() => loadMessages(), 5000);
+    const interval = setInterval(() => {
+      Promise.all([loadDetail(), loadMessages()]).catch(() => {
+        // Evita romper el polling si hay un fallo puntual de red.
+      });
+    }, 5000);
     return () => clearInterval(interval);
   }, [endpointBase]);
 
