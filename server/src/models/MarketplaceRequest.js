@@ -78,6 +78,12 @@ const marketplaceRequestSchema = new mongoose.Schema(
       ref: 'User',
     },
     selectedAt: { type: Date },
+    rejectedProfessionals: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 );

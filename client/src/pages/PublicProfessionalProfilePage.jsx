@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 
 const textFixes = {
@@ -45,6 +45,7 @@ function expiryBadge(expiresAt) {
 
 export default function PublicProfessionalProfilePage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -76,6 +77,7 @@ export default function PublicProfessionalProfilePage() {
   const certifications = data?.certifications || [];
   const documents = data?.documents || [];
   const comments = data?.companyComments || [];
+  const requestId = searchParams.get('requestId') || '';
 
   const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Profesional SST';
 
@@ -131,6 +133,11 @@ export default function PublicProfessionalProfilePage() {
           </div>
 
           <div className="d-flex gap-2 flex-wrap">
+            {requestId ? (
+              <Link className="btn btn-outline-primary btn-sm" to={`/empresa/postulaciones?requestId=${requestId}&professionalId=${id}`}>
+                Volver a postulaciones
+              </Link>
+            ) : null}
             <span className={`badge text-bg-${professional.availabilityStatus === 'available' ? 'success' : professional.availabilityStatus === 'busy' ? 'warning' : 'secondary'}`}>
               {professional.availabilityStatus === 'available' ? 'Disponible' : professional.availabilityStatus === 'busy' ? 'Ocupado' : 'No disponible'}
             </span>

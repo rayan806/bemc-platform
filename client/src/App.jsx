@@ -44,6 +44,7 @@ import CompanyRequests from './pages/company/CompanyRequests';
 import CompanyApplications from './pages/company/CompanyApplications';
 import CompanyServices from './pages/company/CompanyServices';
 import CompanyHistory from './pages/company/CompanyHistory';
+import CompanyProfessionalSearch from './pages/company/CompanyProfessionalSearch';
 import ProfessionalDashboard from './pages/professional/ProfessionalDashboard';
 import ProfessionalProfile from './pages/professional/ProfessionalProfile';
 import ProfessionalOpportunities from './pages/professional/ProfessionalOpportunities';
@@ -105,6 +106,7 @@ export default function App() {
       >
         <Route index element={<CompanyDashboard />} />
         <Route path="crear-solicitud" element={<CompanyCreateRequest />} />
+        <Route path="buscar-profesionales" element={<CompanyProfessionalSearch />} />
         <Route path="solicitudes" element={<CompanyRequests />} />
         <Route path="postulaciones" element={<CompanyApplications />} />
         <Route path="servicios" element={<CompanyServices />} />

@@ -9,7 +9,8 @@ import NotificationsMenu from './NotificationsMenu';
 
 const mainNavItems = [
   { to: '/empresa/servicios', label: 'Servicios de consultoria', icon: 'bi-clipboard2-check' },
-  { to: '/empresa/crear-solicitud', label: 'Buscador de profesionales', icon: 'bi-search' },
+  { to: '/empresa/crear-solicitud', label: 'Publicar solicitud', icon: 'bi-search' },
+  { to: '/empresa/buscar-profesionales', label: 'Buscar profesionales', icon: 'bi-people' },
 ];
 
 const secondaryNavItems = [

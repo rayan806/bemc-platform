@@ -43,10 +43,23 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Rutas de autenticacion con limite de intentos para proteger login.
+const authRateLimitedPaths = new Set([
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/change-password',
+]);
+
+// Rutas de autenticacion con limite de intentos solo en endpoints sensibles.
 app.use(
   '/api/auth',
-  rateLimit({ windowMs: 15 * 60 * 1000, max: 50, message: 'Demasiados intentos' }),
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    message: 'Demasiados intentos. Espera unos minutos antes de volver a iniciar sesión.',
+    skip: (req) => !authRateLimitedPaths.has(req.path),
+  }),
   authRoutes
 );
 

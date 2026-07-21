@@ -4,7 +4,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 function formatRelative(dateValue) {
   const date = new Date(dateValue);
@@ -24,6 +26,8 @@ function formatRelative(dateValue) {
 }
 
 export default function NotificationsMenu() {
+  const navigate = useNavigate();
+  const { user, isProfessional } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
@@ -86,6 +90,60 @@ export default function NotificationsMenu() {
     }
   };
 
+  const getNotificationTarget = (notification) => {
+    const payload = notification?.payload || {};
+    const params = new URLSearchParams();
+
+    if (payload.requestId) params.set('requestId', payload.requestId);
+    if (payload.professionalId) params.set('professionalId', payload.professionalId);
+    if (payload.assignmentId) params.set('assignmentId', payload.assignmentId);
+    if (payload.applicationId) params.set('applicationId', payload.applicationId);
+
+    if (user?.role === 'client') {
+      if (['new_application', 'assignment_accepted'].includes(notification.type)) {
+        if (payload.professionalId) {
+          const query = params.toString();
+          return query
+            ? `/profesionales-sst/${payload.professionalId}?${query}`
+            : `/profesionales-sst/${payload.professionalId}`;
+        }
+
+        const query = params.toString();
+        return query ? `/empresa/postulaciones?${query}` : '/empresa/postulaciones';
+      }
+
+      if (notification.type === 'new_marketplace_report') {
+        const query = params.toString();
+        return query ? `/empresa/servicios?${query}` : '/empresa/servicios';
+      }
+    }
+
+    if (isProfessional) {
+      if (['marketplace_match', 'marketplace_reopened'].includes(notification.type)) {
+        const query = params.toString();
+        return query ? `/profesional/solicitudes?${query}` : '/profesional/solicitudes';
+      }
+
+      if (['selected_professional', 'vacancy_closed'].includes(notification.type)) {
+        const query = params.toString();
+        return query ? `/profesional/servicios?${query}` : '/profesional/servicios';
+      }
+    }
+
+    return null;
+  };
+
+  const openNotification = async (notification) => {
+    const target = getNotificationTarget(notification);
+
+    if (!notification.readAt) {
+      await markOneAsRead(notification._id);
+    }
+
+    setOpen(false);
+    if (target) navigate(target);
+  };
+
   return (
     <div className="notif-menu" ref={menuRef}>
       <button
@@ -119,7 +177,12 @@ export default function NotificationsMenu() {
               <div className="small text-muted">No tienes notificaciones.</div>
             ) : (
               items.slice(0, 12).map((n) => (
-                <div key={n._id} className={`notif-item ${n.readAt ? 'is-read' : 'is-unread'}`}>
+                <button
+                  key={n._id}
+                  type="button"
+                  className={`notif-item ${n.readAt ? 'is-read' : 'is-unread'} text-start w-100 border-0 bg-transparent`}
+                  onClick={() => openNotification(n)}
+                >
                   <div className="notif-item__top">
                     <span className="notif-item__title">{n.title}</span>
                     <small className="text-muted">{formatRelative(n.createdAt)}</small>
@@ -130,12 +193,15 @@ export default function NotificationsMenu() {
                       type="button"
                       className="btn btn-link btn-sm p-0 text-decoration-none"
                       disabled={busyId === n._id}
-                      onClick={() => markOneAsRead(n._id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        markOneAsRead(n._id);
+                      }}
                     >
                       Marcar como leida
                     </button>
                   )}
-                </div>
+                </button>
               ))
             )}
           </div>

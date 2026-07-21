@@ -87,6 +87,71 @@ async function notifyUser(userId, type, title, message, payload = {}) {
   await Notification.create({ user: userId, type, title, message, payload, channel: 'in_app' });
 }
 
+function buildRequestNotificationPayload(request, extra = {}) {
+  return {
+    requestId: request._id,
+    companyName: request.company?.legalName || '',
+    city: request.city || '',
+    requiredProfessionalType: request.requiredProfessionalType || '',
+    duration: request.schedule || '',
+    startDate: request.startDate,
+    riskLevel: request.riskLevel || '',
+    ...extra,
+  };
+}
+
+function buildProfessionalMatchMessage(request) {
+  const parts = [
+    request.requiredProfessionalType || 'Servicio SST',
+    request.city || 'Ubicacion por definir',
+    request.schedule || '',
+    request.startDate ? `Inicio ${new Date(request.startDate).toLocaleDateString('es-CO')}` : '',
+    request.riskLevel ? `Riesgo ${request.riskLevel}` : '',
+  ].filter(Boolean);
+
+  return parts.join(' · ');
+}
+
+async function notifyCompatibleProfessionals(
+  request,
+  {
+    type = 'marketplace_match',
+    title = 'Nueva solicitud compatible',
+    message = 'Existe una solicitud que coincide con tu perfil profesional SST.',
+  } = {}
+) {
+  const rejectedIds = new Set((request.rejectedProfessionals || []).map((row) => row.toString()));
+  const matches = (await findMatchingProfessionals(request)).filter(
+    (row) => !rejectedIds.has(row._id.toString())
+  );
+  if (!matches.length) return { matched: 0, notified: 0 };
+
+  const matchedUserIds = matches.map((row) => row._id);
+  const existing = await Notification.find({
+    user: { $in: matchedUserIds },
+    type,
+    'payload.requestId': request._id,
+  })
+    .select('user')
+    .lean();
+
+  const alreadyNotified = new Set(existing.map((row) => row.user?.toString()).filter(Boolean));
+  const targets = matches.filter((row) => !alreadyNotified.has(row._id.toString()));
+
+  await Promise.all(
+    targets.map((pro, index) =>
+      notifyUser(pro._id, type, title, message, {
+        ...buildRequestNotificationPayload(request, {
+          matchScore: Number(pro.score || 0),
+          matchRank: index + 1,
+        }),
+      })
+    )
+  );
+
+  return { matched: matches.length, notified: targets.length };
+}
+
 async function recomputeProfessionalRating(professionalId) {
   const ratings = await MarketplaceRating.find({
     toUser: professionalId,
@@ -724,16 +789,11 @@ router.post(
       });
 
       if (request.status === 'published') {
-        const matches = await findMatchingProfessionals(request);
-        for (const pro of matches) {
-          await notifyUser(
-            pro._id,
-            'marketplace_match',
-            'Nueva solicitud compatible',
-            'Existe una solicitud que coincide con tu perfil profesional SST.',
-            { requestId: request._id }
-          );
-        }
+        await notifyCompatibleProfessionals(request, {
+          type: 'marketplace_match',
+          title: 'Nueva solicitud compatible',
+          message: buildProfessionalMatchMessage(request),
+        });
       }
 
       await logAudit({
@@ -791,6 +851,9 @@ router.get('/opportunities', async (req, res, next) => {
 
     const opportunities = [];
     for (const request of openRequests) {
+      if ((request.rejectedProfessionals || []).some((row) => row.toString() === req.user._id.toString())) {
+        continue;
+      }
       const matches = await findMatchingProfessionals(request);
       if (matches.some((p) => p._id.toString() === req.user._id.toString())) {
         opportunities.push(request);
@@ -798,6 +861,48 @@ router.get('/opportunities', async (req, res, next) => {
     }
 
     res.json(opportunities);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/requests/:id/reject', async (req, res, next) => {
+  try {
+    if (!isProfessional(req.user)) {
+      return res.status(403).json({ message: 'Solo profesionales SST pueden rechazar oportunidades' });
+    }
+
+    const request = await MarketplaceRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: 'Solicitud no encontrada' });
+    if (!['published', 'in_postulation'].includes(request.status)) {
+      return res.status(400).json({ message: 'La solicitud ya no esta disponible' });
+    }
+
+    const existingApplication = await MarketplaceApplication.findOne({
+      request: request._id,
+      professional: req.user._id,
+    }).select('_id');
+
+    if (existingApplication) {
+      return res.status(409).json({ message: 'Ya respondiste a esta solicitud' });
+    }
+
+    if (!request.rejectedProfessionals.some((row) => row.toString() === req.user._id.toString())) {
+      request.rejectedProfessionals.push(req.user._id);
+      await request.save();
+    }
+
+    await Notification.updateMany(
+      {
+        user: req.user._id,
+        type: { $in: ['marketplace_match', 'marketplace_reopened'] },
+        'payload.requestId': request._id,
+        readAt: null,
+      },
+      { $set: { readAt: new Date() } }
+    );
+
+    res.json({ message: 'Oportunidad descartada' });
   } catch (err) {
     next(err);
   }
@@ -847,16 +952,11 @@ router.patch(
       await request.save();
 
       if (req.body.status === 'published' || req.body.status === 'in_postulation') {
-        const matches = await findMatchingProfessionals(request);
-        for (const pro of matches) {
-          await notifyUser(
-            pro._id,
-            'marketplace_match',
-            'Solicitud abierta para postulación',
-            'Se publicó una solicitud compatible con tu perfil.',
-            { requestId: request._id }
-          );
-        }
+        await notifyCompatibleProfessionals(request, {
+          type: 'marketplace_match',
+          title: 'Solicitud abierta para postulación',
+          message: buildProfessionalMatchMessage(request),
+        });
       }
 
       await logAudit({
@@ -887,6 +987,13 @@ router.get('/requests/:id/matches', async (req, res, next) => {
     }
 
     const matches = await findMatchingProfessionals(request);
+
+    await notifyCompatibleProfessionals(request, {
+      type: 'marketplace_match',
+      title: 'Tu perfil coincide con una solicitud',
+      message: buildProfessionalMatchMessage(request),
+    });
+
     res.json(matches);
   } catch (err) {
     next(err);
@@ -919,15 +1026,24 @@ router.post(
 
       if (request.status === 'published') {
         request.status = 'in_postulation';
-        await request.save();
       }
+
+      request.rejectedProfessionals = (request.rejectedProfessionals || []).filter(
+        (row) => row.toString() !== req.user._id.toString()
+      );
+      await request.save();
+
+      const professionalName = `${req.user.profile?.firstName || ''} ${req.user.profile?.lastName || ''}`.trim() || 'Profesional SST';
 
       await notifyUser(
         request.createdBy._id,
         'new_application',
         'Nueva postulación recibida',
-        'Un profesional SST se postuló a tu solicitud.',
-        { requestId: request._id, applicationId: application._id }
+        `${professionalName} se postuló a tu solicitud.`,
+        buildRequestNotificationPayload(request, {
+          applicationId: application._id,
+          professionalId: req.user._id,
+        })
       );
 
       await logAudit({
@@ -1214,7 +1330,11 @@ router.post(
           'assignment_accepted',
           'Profesional confirmó asignación',
           'El profesional aceptó la asignación y puede iniciar el servicio.',
-          { requestId: assignment.request._id, assignmentId: assignment._id }
+          {
+            requestId: assignment.request._id,
+            assignmentId: assignment._id,
+            professionalId: assignment.professional,
+          }
         );
 
         await logAudit({
@@ -1248,15 +1368,12 @@ router.post(
       );
 
       const matches = await findMatchingProfessionals(assignment.request);
-      for (const pro of matches) {
-        await notifyUser(
-          pro._id,
-          'marketplace_reopened',
-          'Solicitud reabierta',
-          'Una solicitud volvió a estar disponible para postulación.',
-          { requestId: assignment.request._id }
-        );
-      }
+
+      await notifyCompatibleProfessionals(assignment.request, {
+        type: 'marketplace_reopened',
+        title: 'Solicitud reabierta',
+        message: buildProfessionalMatchMessage(assignment.request),
+      });
 
       await notifyUser(
         assignment.request.createdBy,

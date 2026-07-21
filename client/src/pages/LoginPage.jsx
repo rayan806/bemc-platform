@@ -39,7 +39,11 @@ export default function LoginPage() {
         navigate('/portal');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al iniciar sesión');
+      if (err.response?.status === 429) {
+        setError('Demasiados intentos de inicio de sesión. Espera unos minutos y vuelve a intentarlo.');
+      } else {
+        setError(err.response?.data?.message || 'Error al iniciar sesión');
+      }
     } finally {
       setLoading(false);
     }

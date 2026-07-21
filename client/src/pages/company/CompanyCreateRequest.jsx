@@ -67,6 +67,8 @@ export default function CompanyCreateRequest() {
     address: '',
     requiredProfessionalType: '',
     minYearsExperience: 0,
+    workersCount: 1,
+    riskLevel: 'medio',
     budgetReference: '',
     duration: '1_week',
     requiredAvailability: 'immediate',
@@ -121,8 +123,8 @@ export default function CompanyCreateRequest() {
         requiredProfessionalType: form.requiredProfessionalType,
         requiredService: form.requiredProfessionalType,
         minYearsExperience: Number(form.minYearsExperience || 0),
-        workersCount: 1,
-        riskLevel: 'medio',
+        workersCount: Number(form.workersCount || 1),
+        riskLevel: form.riskLevel,
         schedule: durationLabel,
         requiresSstLicense: !!form.requiresSstLicense,
         requiresWorkingAtHeights: form.requiresWorkingAtHeights,
@@ -140,6 +142,8 @@ export default function CompanyCreateRequest() {
         address: '',
         requiredProfessionalType: '',
         minYearsExperience: 0,
+        workersCount: 1,
+        riskLevel: 'medio',
         budgetReference: '',
         duration: '1_week',
         requiredAvailability: 'immediate',
@@ -156,8 +160,8 @@ export default function CompanyCreateRequest() {
 
   return (
     <div>
-      <h2 className="h4 mb-2">Buscador de profesionales</h2>
-      <p className="text-muted mb-3">Formulario rapido. Tiempo estimado: menos de 2 minutos.</p>
+      <h2 className="h4 mb-2">Publicar solicitud</h2>
+      <p className="text-muted mb-3">Publica una necesidad y el sistema la enviará a los profesionales compatibles.</p>
       {msg && <div className="alert alert-info">{msg}</div>}
       <form className="card card-bemc p-3 row g-3" onSubmit={save}>
         <div className="col-md-6">
@@ -178,6 +182,21 @@ export default function CompanyCreateRequest() {
         <div className="col-md-3">
           <label className="form-label">Salario o presupuesto (opcional)</label>
           <input type="number" min="0" className="form-control" placeholder="Ej. 2500000" value={form.budgetReference} onChange={(e) => setForm((p) => ({ ...p, budgetReference: e.target.value }))} />
+        </div>
+
+        <div className="col-md-3">
+          <label className="form-label">Número de trabajadores</label>
+          <input type="number" min="1" className="form-control" value={form.workersCount} onChange={(e) => setForm((p) => ({ ...p, workersCount: e.target.value }))} />
+        </div>
+
+        <div className="col-md-3">
+          <label className="form-label">Nivel de riesgo</label>
+          <select className="form-select" value={form.riskLevel} onChange={(e) => setForm((p) => ({ ...p, riskLevel: e.target.value }))}>
+            <option value="bajo">Bajo</option>
+            <option value="medio">Medio</option>
+            <option value="alto">Alto</option>
+            <option value="muy_alto">Muy alto</option>
+          </select>
         </div>
 
         <div className="col-md-4">
@@ -256,7 +275,7 @@ export default function CompanyCreateRequest() {
         <div className="col-md-4"><input className="form-control" type="email" placeholder="Correo" required value={form.contactEmail} onChange={(e) => setForm((p) => ({ ...p, contactEmail: e.target.value }))} /></div>
 
         <div className="col-12 d-flex gap-2">
-          <button type="submit" className="btn btn-bemc">Buscar profesionales</button>
+          <button type="submit" className="btn btn-bemc">Publicar solicitud</button>
         </div>
       </form>
     </div>
