@@ -101,6 +101,17 @@ app.get('/api/health', (req, res) => {
 // PRODUCTION STATIC SERVING
 // =========================
 const clientDistPath = path.join(__dirname, '../../client/dist');
+const clientAssetsPath = path.join(clientDistPath, 'assets');
+app.get('/assets/:file', (req, res, next) => {
+  const fileName = path.basename(req.params.file);
+  const assetPath = path.join(clientAssetsPath, fileName);
+  if (assetPath !== path.resolve(clientAssetsPath, fileName)) {
+    return res.status(400).json({ message: 'Asset inválido' });
+  }
+  return res.sendFile(assetPath, { maxAge: '1h' }, (err) => {
+    if (err) return next(err);
+  });
+});
 // Sirve los archivos compilados del frontend (React).
 app.use(express.static(clientDistPath));
 
