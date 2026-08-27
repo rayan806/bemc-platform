@@ -29,13 +29,26 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET es obligatorio en producción');
+  }
   console.warn('ADVERTENCIA: JWT_SECRET no definido. Usa server/.env');
-  process.env.JWT_SECRET = 'dev-secret-change-in-production';
+  process.env.JWT_SECRET = 'dev-only-secret-change-me';
 }
+
+const allowedOrigins = (process.env.CLIENT_ORIGINS || 'http://localhost:5173,http://localhost:4173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Origen no permitido por CORS'));
+    },
     credentials: true,
   })
 );
@@ -70,9 +83,15 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use(
+  '/api/public/quotes',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: 'Demasiadas solicitudes de cotización. Intenta de nuevo más tarde.',
+  })
+);
 app.use('/api/public', publicRoutes);
-
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', name: 'B.E.M.C API' });
@@ -85,9 +104,9 @@ const clientDistPath = path.join(__dirname, '../../client/dist');
 // Sirve los archivos compilados del frontend (React).
 app.use(express.static(clientDistPath));
 
-// SPA Fallback: Serve index.html for any route not starting with /api or /uploads
+// SPA Fallback: Serve index.html for any route not starting with /api.
 app.get('*', (req, res) => {
-  // Don't serve SPA for API or upload routes
+  // Don't serve SPA for API routes.
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return res.status(404).json({ message: 'Ruta no encontrada' });
   }

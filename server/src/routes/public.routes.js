@@ -22,6 +22,32 @@ function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function toPublicProfessional(user) {
+  return {
+    _id: user._id,
+    profile: {
+      firstName: user.profile?.firstName,
+      lastName: user.profile?.lastName,
+      city: user.profile?.city,
+      department: user.profile?.department,
+      bio: user.profile?.bio,
+      avatarUrl: user.profile?.avatarUrl,
+    },
+    professionalProfile: {
+      mainProfession: user.professionalProfile?.mainProfession,
+      mainRole: user.professionalProfile?.mainRole,
+      yearsExperience: user.professionalProfile?.yearsExperience,
+      experienceSummary: user.professionalProfile?.experienceSummary,
+      specialties: user.professionalProfile?.specialties || [],
+      servicesOffered: user.professionalProfile?.servicesOffered || [],
+      geographicAvailability: user.professionalProfile?.geographicAvailability,
+      canTravel: user.professionalProfile?.canTravel,
+      ratingAvg: user.professionalProfile?.ratingAvg,
+      completedServicesCount: user.professionalProfile?.completedServicesCount,
+    },
+  };
+}
+
 function hasCoverage(prof, selectedCity, normalizedCityText) {
   const mode = prof.geographicAvailability || 'city_only';
   const nationwide = mode === 'nationwide' || !!prof.canTravel;
@@ -134,7 +160,7 @@ router.get('/professionals', async (req, res, next) => {
         Number(a.professionalProfile?.completedServicesCount || 0);
     });
 
-    res.json(sorted);
+    res.json(sorted.map(toPublicProfessional));
   } catch (err) {
     next(err);
   }
@@ -164,10 +190,9 @@ router.get('/professionals/:id', async (req, res, next) => {
         .lean(),
     ]);
 
+    const publicProfessional = toPublicProfessional(user);
     res.json({
-      _id: user._id,
-      profile: user.profile,
-      professionalProfile: user.professionalProfile,
+      ...publicProfessional,
       certifications,
       documents,
       companyComments: ratings.map((r) => ({

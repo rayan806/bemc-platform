@@ -97,3 +97,44 @@ Para no frenar demo interna:
 - Levantar backend local con Mongo local (`mongodb://127.0.0.1:27017/bemc`).
 - Ejecutar QA funcional completo localmente.
 - Mantener Render para frontend/API solo cuando Atlas quede estable.
+
+## 8) Cierre QA ubicaciones normalizadas (2026-07-20)
+
+Objetivo validado:
+- El sistema no debe aceptar ubicacion libre para ciudad en flujos criticos.
+- Debe aceptar solo seleccion desde catalogo (`cityLocation`).
+- Debe persistir codigos normalizados (`cityCode`, `departmentCode`, `countryCode`).
+
+Evidencia API en produccion (`https://bemc-platform.onrender.com/api`):
+1. Empresa, crear solicitud sin `cityLocation`:
+  - Endpoint: `POST /marketplace/requests`
+  - Resultado: rechazo esperado
+  - Respuesta: `{"message":"Datos inválidos","errors":[{"path":"cityLocation"...}]}`
+2. Empresa, crear solicitud con `cityLocation` valido (Tunja):
+  - Endpoint: `POST /marketplace/requests`
+  - Resultado: exito esperado
+  - Persistencia confirmada: `CITY=Tunja`, `CITY_CODE=15001`, `DEPT=Boyaca`, `DEPT_CODE=15`
+3. Profesional, patch con ciudad libre invalida:
+  - Endpoint: `PATCH /marketplace/professionals/me`
+  - Resultado: rechazo esperado
+  - Respuesta: `{"message":"Selecciona una ciudad valida desde la lista"}`
+4. Profesional, patch con `cityLocation` valido (Duitama):
+  - Endpoint: `PATCH /marketplace/professionals/me`
+  - Resultado: exito esperado
+  - Persistencia confirmada: `profile.cityCode=15238` y `professionalProfile.cityCode=15238`
+
+Evidencia UI en produccion:
+- Ruta empresa autenticada: `/empresa/crear-solicitud`
+  - Campo ciudad visible como autocomplete.
+  - Direccion se mantiene como texto libre independiente (comportamiento esperado).
+- Ruta profesional perfil: `/profesional/perfil`
+  - Campo ciudad principal con autocomplete operativo.
+  - Coberturas por municipio/departamento con chips y busqueda.
+- Ruta publica: `/cotizacion-empresas`
+  - Campo ciudad con autocomplete operativo (sugerencias visibles para `Tun`: `Tunja, Boyaca`, `Tunjuelito, Bogota D.C.`).
+
+Nota operativa QA:
+- El autocomplete usa debounce de red; esperar ~700 ms tras teclear antes de concluir "Sin coincidencias".
+
+Conclusion:
+- Validacion de ubicaciones por catalogo y persistencia de codigos normalizados: OK en backend y frontend de flujos principales.

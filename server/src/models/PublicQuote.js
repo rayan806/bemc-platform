@@ -5,6 +5,8 @@
 
 import mongoose from 'mongoose';
 
+export const PUBLIC_QUOTE_STATUSES = ['new', 'in_review', 'contacted', 'closed'];
+
 const publicQuoteSchema = new mongoose.Schema(
   {
     companyName: { type: String, required: true, trim: true },
@@ -21,7 +23,7 @@ const publicQuoteSchema = new mongoose.Schema(
     message: { type: String, trim: true },
     status: {
       type: String,
-      enum: ['new', 'in_review', 'contacted', 'closed'],
+      enum: PUBLIC_QUOTE_STATUSES,
       default: 'new',
       index: true,
     },

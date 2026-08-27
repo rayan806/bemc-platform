@@ -14,8 +14,9 @@ import { MarketplaceApplication } from '../models/MarketplaceApplication.js';
 import { MarketplaceAssignment } from '../models/MarketplaceAssignment.js';
 import { MarketplaceRating } from '../models/MarketplaceRating.js';
 import { MarketplaceReport } from '../models/MarketplaceReport.js';
-import { PublicQuote } from '../models/PublicQuote.js';
+import { PublicQuote, PUBLIC_QUOTE_STATUSES } from '../models/PublicQuote.js';
 import { authenticate, isStaff } from '../middleware/auth.js';
+import { body, validationResult } from 'express-validator';
 
 const router = Router();
 const systemConfigState = {
@@ -249,12 +250,16 @@ router.get('/public-quotes', async (req, res, next) => {
   }
 });
 
-router.patch('/public-quotes/:id/status', async (req, res, next) => {
+router.patch('/public-quotes/:id/status', body('status').isIn(PUBLIC_QUOTE_STATUSES), async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: 'Estado de cotización inválido', errors: errors.array() });
+    }
     const quote = await PublicQuote.findByIdAndUpdate(
       req.params.id,
-      { status: req.body.status || 'in_review' },
-      { new: true }
+      { status: req.body.status },
+      { new: true, runValidators: true }
     );
     if (!quote) return res.status(404).json({ message: 'Cotizacion no encontrada' });
     res.json(quote);

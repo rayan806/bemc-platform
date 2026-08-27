@@ -48,6 +48,10 @@ export default function AuthCallbackPage() {
 
         if (['admin', 'consultor', 'auxiliar', 'supervisor'].includes(user.role)) {
           navigate('/admin', { replace: true });
+        } else if (user.role === 'professional_sst') {
+          navigate('/profesional', { replace: true });
+        } else if (user.accountType === 'company') {
+          navigate('/empresa', { replace: true });
         } else {
           navigate('/portal', { replace: true });
         }

@@ -22,6 +22,16 @@ import {
   MARKETPLACE_ASSIGNMENT_STATUSES,
 } from '../models/MarketplaceAssignment.js';
 import { MarketplaceReport } from '../models/MarketplaceReport.js';
+import {
+  MarketplaceActivity,
+  MARKETPLACE_ACTIVITY_TYPES,
+  MARKETPLACE_ACTIVITY_STATUSES,
+} from '../models/MarketplaceActivity.js';
+import {
+  MarketplaceDeliverable,
+  MARKETPLACE_DELIVERABLE_STATUSES,
+  MARKETPLACE_DELIVERABLE_TYPES,
+} from '../models/MarketplaceDeliverable.js';
 import { MarketplaceRating } from '../models/MarketplaceRating.js';
 import {
   ProfessionalCertification,
@@ -40,10 +50,19 @@ import {
 } from '../services/locationCatalog.service.js';
 
 const router = Router();
+
+const ASSIGNMENT_TRANSITIONS = {
+  assigned: ['in_execution', 'cancelled'],
+  in_execution: ['finished', 'cancelled'],
+  finished: [],
+  cancelled: [],
+};
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const contractsUploadDir = path.join(__dirname, '../../uploads/contracts');
+const deliverablesUploadDir = path.join(__dirname, '../../uploads/deliverables');
 
 fs.mkdirSync(contractsUploadDir, { recursive: true });
+fs.mkdirSync(deliverablesUploadDir, { recursive: true });
 
 const contractUpload = multer({
   storage: multer.diskStorage({
@@ -64,6 +83,30 @@ const contractUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const deliverableUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, deliverablesUploadDir),
+    filename: (req, file, cb) => {
+      const safeOriginal = String(file.originalname || 'entregable').replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, `deliverable-${Date.now()}-${Math.round(Math.random() * 1e9)}-${safeOriginal}`);
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowed = new Set([
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+    ]);
+    if (!allowed.has(file.mimetype)) return cb(new Error('Tipo de archivo no permitido'));
+    cb(null, true);
+  },
+  limits: { fileSize: 15 * 1024 * 1024 },
+});
+
 router.use(authenticate);
 
 function validate(req, res) {
@@ -81,8 +124,33 @@ function isCompanyClient(user) {
   return user.role === 'client' && !!user.company;
 }
 
+async function ensureDefaultActivities(assignment) {
+  if (assignment.professionalDecision !== 'accepted') return;
+  const activityCount = await MarketplaceActivity.countDocuments({ assignment: assignment._id });
+  if (activityCount) return;
+  const activityTemplates = [
+    ['diagnosis', 'Diagnóstico SG-SST'],
+    ['risk_matrix', 'Matriz de peligros y riesgos'],
+    ['inspection', 'Inspecciones de seguridad'],
+    ['training', 'Capacitaciones'],
+    ['incident', 'Accidentes e incidentes'],
+    ['work_plan', 'Plan de trabajo'],
+    ['action_plan', 'Planes de acción'],
+    ['indicator', 'Indicadores SST'],
+    ['report', 'Informe final'],
+  ];
+  await MarketplaceActivity.insertMany(activityTemplates.map(([type, title]) => ({
+    assignment: assignment._id,
+    professional: assignment.professional,
+    company: assignment.company,
+    type,
+    title,
+    status: 'pending',
+  })));
+}
+
 function isOperator(user) {
-  return user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(user.role) || isStaff(user);
+  return user.role === 'admin' || ['consultor', 'auxiliar', 'supervisor'].includes(user.role);
 }
 
 function displayNameFromUser(user) {
@@ -1069,13 +1137,31 @@ router.get('/requests/:id', async (req, res, next) => {
     if (!request) return res.status(404).json({ message: 'Solicitud no encontrada' });
 
     const isOwner = request.createdBy?._id?.toString() === req.user._id.toString();
+    const isSelectedProfessional = request.selectedProfessional?._id?.toString() === req.user._id.toString();
+    const hasApplication = await MarketplaceApplication.exists({
+      request: request._id,
+      professional: req.user._id,
+    });
+    const canBrowsePublishedRequest =
+      isProfessional(req.user) && ['published', 'in_postulation'].includes(request.status);
     const canView =
       isOwner ||
-      isProfessional(req.user) ||
+      isSelectedProfessional ||
+      hasApplication ||
+      canBrowsePublishedRequest ||
       req.user.role === 'admin' ||
       ['consultor', 'auxiliar', 'supervisor'].includes(req.user.role);
 
     if (!canView) return res.status(403).json({ message: 'Sin permisos' });
+
+    if (isProfessional(req.user) && !isOwner && !isSelectedProfessional && !hasApplication) {
+      request.company = undefined;
+      request.createdBy = undefined;
+      request.contactName = undefined;
+      request.contactPhone = undefined;
+      request.contactEmail = undefined;
+      request.address = undefined;
+    }
 
     res.json(request);
   } catch (err) {
@@ -1926,7 +2012,9 @@ router.post(
       assignment.professionalDecisionReason = req.body.reason || '';
 
       if (req.body.decision === 'accepted') {
+        assignment.contractStatus = 'accepted';
         await assignment.save();
+        await ensureDefaultActivities(assignment);
 
         await notifyUser(
           assignment.request.createdBy,
@@ -2021,6 +2109,12 @@ router.patch(
         return res.status(400).json({ message: 'El profesional debe aceptar la asignación antes de iniciar' });
       }
 
+      if (!ASSIGNMENT_TRANSITIONS[assignment.status]?.includes(req.body.status)) {
+        return res.status(400).json({
+          message: `No se puede cambiar una asignación de ${assignment.status} a ${req.body.status}`,
+        });
+      }
+
       if (req.body.status === 'finished' && assignment.status !== 'in_execution') {
         return res.status(400).json({ message: 'Solo puedes finalizar asignaciones en ejecución' });
       }
@@ -2074,6 +2168,9 @@ router.post(
       if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
       if (assignment.professional.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: 'Sin permisos' });
+      }
+      if (assignment.status !== 'in_execution') {
+        return res.status(400).json({ message: 'Solo puedes registrar reportes durante la ejecución' });
       }
 
       const report = await MarketplaceReport.create({
@@ -2130,6 +2227,144 @@ router.get('/assignments/:id/reports', async (req, res, next) => {
   }
 });
 
+router.get('/assignments/:id/deliverables', async (req, res, next) => {
+  try {
+    const assignment = await MarketplaceAssignment.findById(req.params.id).populate('request');
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+    const allowed =
+      assignment.professional.toString() === req.user._id.toString() ||
+      assignment.request.createdBy.toString() === req.user._id.toString() ||
+      isOperator(req.user);
+    if (!allowed) return res.status(403).json({ message: 'Sin permisos' });
+    const rows = await MarketplaceDeliverable.find({ assignment: assignment._id })
+      .select('-filePath')
+      .sort({ createdAt: -1 });
+    res.json(rows.map((row) => ({
+      ...row.toObject(),
+      downloadUrl: `/api/marketplace/deliverables/${row._id}/download`,
+    })));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/assignments/:id/activities', async (req, res, next) => {
+  try {
+    const assignment = await MarketplaceAssignment.findById(req.params.id).populate('request');
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+    const allowed = assignment.professional.toString() === req.user._id.toString() || assignment.request.createdBy.toString() === req.user._id.toString() || isOperator(req.user);
+    if (!allowed) return res.status(403).json({ message: 'Sin permisos' });
+    await ensureDefaultActivities(assignment);
+    const rows = await MarketplaceActivity.find({ assignment: assignment._id }).sort({ dueDate: 1, createdAt: 1 });
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/assignments/:id/activities', [body('type').isIn(MARKETPLACE_ACTIVITY_TYPES), body('title').trim().notEmpty(), body('dueDate').optional().isISO8601()], async (req, res, next) => {
+  try {
+    if (!isProfessional(req.user)) return res.status(403).json({ message: 'Solo el profesional puede crear actividades' });
+    if (!validate(req, res)) return;
+    const assignment = await MarketplaceAssignment.findById(req.params.id);
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+    if (assignment.professional.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Sin permisos' });
+    const activity = await MarketplaceActivity.create({ assignment: assignment._id, professional: assignment.professional, company: assignment.company, type: req.body.type, title: req.body.title, description: req.body.description, dueDate: req.body.dueDate });
+    await notifyUser(assignment.assignedBy, 'marketplace_activity_created', 'Nueva actividad SST', 'El profesional creó una actividad en el servicio.', { assignmentId: assignment._id, activityId: activity._id });
+    await logAudit({ user: req.user, action: 'create_marketplace_activity', entity: 'MarketplaceActivity', entityId: activity._id, req });
+    res.status(201).json(activity);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/activities/:id', [body('status').optional().isIn(MARKETPLACE_ACTIVITY_STATUSES), body('notes').optional().trim(), body('dueDate').optional().isISO8601()], async (req, res, next) => {
+  try {
+    if (!validate(req, res)) return;
+    const activity = await MarketplaceActivity.findById(req.params.id).populate({ path: 'assignment', populate: { path: 'request' } });
+    if (!activity) return res.status(404).json({ message: 'Actividad no encontrada' });
+    const isProfessional = activity.professional.toString() === req.user._id.toString();
+    const isCompany = activity.assignment.request.createdBy.toString() === req.user._id.toString();
+    if (!isProfessional && !isCompany && !isOperator(req.user)) return res.status(403).json({ message: 'Sin permisos' });
+    if (!isProfessional && req.body.status && req.body.status !== 'cancelled') return res.status(403).json({ message: 'Solo el profesional puede actualizar el progreso' });
+    if (req.body.status !== undefined) activity.status = req.body.status;
+    if (req.body.notes !== undefined) activity.notes = req.body.notes;
+    if (req.body.dueDate !== undefined) activity.dueDate = req.body.dueDate;
+    if (activity.status === 'completed') activity.completedAt = new Date();
+    await activity.save();
+    await logAudit({ user: req.user, action: 'update_marketplace_activity', entity: 'MarketplaceActivity', entityId: activity._id, changes: { status: activity.status }, req });
+    res.json(activity);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/assignments/:id/deliverables', (req, res, next) => {
+  deliverableUpload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ message: err.message || 'No se pudo cargar el archivo' });
+    next();
+  });
+}, [body('title').trim().notEmpty(), body('type').optional().isIn(MARKETPLACE_DELIVERABLE_TYPES)], async (req, res, next) => {
+  try {
+    if (!isProfessional(req.user)) return res.status(403).json({ message: 'Solo el profesional puede cargar entregables' });
+    if (!validate(req, res)) return;
+    const assignment = await MarketplaceAssignment.findById(req.params.id).populate('request');
+    if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+    if (assignment.professional.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Sin permisos' });
+    if (!['assigned', 'in_execution'].includes(assignment.status)) return res.status(400).json({ message: 'El servicio no admite entregables en este estado' });
+    if (!req.file) return res.status(400).json({ message: 'Debes seleccionar un archivo' });
+    const deliverable = await MarketplaceDeliverable.create({
+      assignment: assignment._id,
+      professional: assignment.professional,
+      company: assignment.company,
+      title: req.body.title,
+      type: req.body.type || 'other',
+      fileName: req.file.originalname,
+      filePath: req.file.path,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+    await notifyUser(assignment.request.createdBy, 'marketplace_deliverable_uploaded', 'Nuevo documento del servicio', 'El profesional cargó un entregable para revisión.', { assignmentId: assignment._id, deliverableId: deliverable._id });
+    await logAudit({ user: req.user, action: 'upload_marketplace_deliverable', entity: 'MarketplaceDeliverable', entityId: deliverable._id, req });
+    res.status(201).json({ ...deliverable.toObject(), downloadUrl: `/api/marketplace/deliverables/${deliverable._id}/download` });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/deliverables/:id/review', [body('status').isIn(MARKETPLACE_DELIVERABLE_STATUSES), body('reviewNotes').optional().trim()], async (req, res, next) => {
+  try {
+    if (!validate(req, res)) return;
+    const deliverable = await MarketplaceDeliverable.findById(req.params.id).populate({ path: 'assignment', populate: { path: 'request' } });
+    if (!deliverable) return res.status(404).json({ message: 'Entregable no encontrado' });
+    const isCompanyOwner = deliverable.assignment.request.createdBy.toString() === req.user._id.toString();
+    if (!isCompanyOwner && !isOperator(req.user)) return res.status(403).json({ message: 'Solo la empresa puede revisar entregables' });
+    deliverable.status = req.body.status;
+    deliverable.reviewNotes = req.body.reviewNotes || '';
+    deliverable.reviewedBy = req.user._id;
+    deliverable.reviewedAt = new Date();
+    await deliverable.save();
+    await notifyUser(deliverable.professional, 'marketplace_deliverable_reviewed', 'Documento revisado', `La empresa marcó el documento como ${deliverable.status === 'approved' ? 'aprobado' : deliverable.status === 'rejected' ? 'rechazado' : 'pendiente'}.`, { assignmentId: deliverable.assignment._id, deliverableId: deliverable._id });
+    await logAudit({ user: req.user, action: 'review_marketplace_deliverable', entity: 'MarketplaceDeliverable', entityId: deliverable._id, changes: { status: deliverable.status }, req });
+    res.json({ ...deliverable.toObject(), downloadUrl: `/api/marketplace/deliverables/${deliverable._id}/download` });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/deliverables/:id/download', async (req, res, next) => {
+  try {
+    const deliverable = await MarketplaceDeliverable.findById(req.params.id).populate({ path: 'assignment', populate: { path: 'request' } });
+    if (!deliverable) return res.status(404).json({ message: 'Entregable no encontrado' });
+    const allowed = deliverable.professional.toString() === req.user._id.toString() || deliverable.assignment.request.createdBy.toString() === req.user._id.toString() || isOperator(req.user);
+    if (!allowed) return res.status(403).json({ message: 'Sin permisos' });
+    if (!fs.existsSync(deliverable.filePath)) return res.status(404).json({ message: 'Archivo no encontrado' });
+    res.download(deliverable.filePath, deliverable.fileName);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post(
   '/assignments/:id/ratings',
   [body('score').isInt({ min: 1, max: 5 }), body('comment').optional().trim()],
@@ -2139,6 +2374,9 @@ router.post(
 
       const assignment = await MarketplaceAssignment.findById(req.params.id).populate('request');
       if (!assignment) return res.status(404).json({ message: 'Asignación no encontrada' });
+      if (assignment.status !== 'finished') {
+        return res.status(400).json({ message: 'La asignación debe estar finalizada para calificar' });
+      }
 
       const isProfessionalSide = assignment.professional.toString() === req.user._id.toString();
       const isCompanySide = assignment.request.createdBy.toString() === req.user._id.toString();

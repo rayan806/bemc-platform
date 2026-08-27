@@ -72,68 +72,43 @@ export default function ProfessionalDashboard() {
   const completionColor = completionPercent >= 85 ? 'bg-success' : completionPercent >= 60 ? 'bg-warning' : 'bg-danger';
 
   return (
-    <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div className="dashboard-shell">
+      <div className="dashboard-heading">
         <div>
           <h2 className="h4 mb-1">Dashboard Profesional SST</h2>
           <p className="text-muted mb-0">Resumen de tu actividad y estado de tu hoja de vida digital.</p>
         </div>
-        <div className="d-flex gap-2">
-          <Link to="/profesional/perfil" className="btn btn-bemc btn-sm">Mi hoja de vida</Link>
-          <Link to="/profesional/solicitudes" className="btn btn-outline-primary btn-sm">Ver solicitudes</Link>
+        <div className="d-flex flex-wrap gap-2">
+          <div className="dashboard-date"><i className="bi bi-calendar3" /> Actividad reciente</div>
+          <Link to="/profesional/solicitudes" className="btn btn-bemc btn-sm"><i className="bi bi-search me-1" /> Ver solicitudes</Link>
         </div>
       </div>
 
       <div className="row g-3 mb-4">
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{completionPercent}%</div><div className="stat-label">Perfil completado</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{opportunities.length}</div><div className="stat-label">Solicitudes nuevas</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{summary.activeApplications || 0}</div><div className="stat-label">Postulaciones activas</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{summary.activeServices || 0}</div><div className="stat-label">Servicios en ejecución</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{summary.finishedServices || history.length}</div><div className="stat-label">Servicios finalizados</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{summary.profile?.ratingAvg || 0}</div><div className="stat-label">Calificación promedio</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{uniqueCompanies}</div><div className="stat-label">Empresas contratantes</div></div></div>
-        <div className="col-sm-6 col-xl-3"><div className="stat-card"><div className="stat-value">{totalExpiring}</div><div className="stat-label">Documentos por vencer</div></div></div>
+        {[['Perfil completado', `${completionPercent}%`, 'bi-person-check', '#1ca56f'], ['Solicitudes nuevas', opportunities.length, 'bi-briefcase', '#2589d8'], ['Postulaciones activas', summary.activeApplications || 0, 'bi-send-check', '#7652d8'], ['Servicios en ejecución', summary.activeServices || 0, 'bi-tools', '#f28b24'], ['Servicios finalizados', summary.finishedServices || history.length, 'bi-check-circle', '#1ca56f'], ['Calificación promedio', summary.profile?.ratingAvg || 0, 'bi-star-fill', '#e8a838'], ['Empresas contratantes', uniqueCompanies, 'bi-building', '#2589d8'], ['Documentos por vencer', totalExpiring, 'bi-file-earmark-excel', '#c94c4c']].map(([label, value, icon, color]) => (
+          <div key={label} className="col-6 col-md-3"><div className="dashboard-stat"><div className="dashboard-stat__top"><span className="dashboard-stat__icon" style={{ background: color }}><i className={`bi ${icon}`} /></span></div><div className="dashboard-stat__value">{value}</div><div className="dashboard-stat__label">{label}</div></div></div>
+        ))}
       </div>
 
       <div className="row g-3">
         <div className="col-lg-6">
-          <div className="card card-bemc p-3 h-100">
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <h3 className="h6 mb-0">Estado profesional</h3>
-              <span className="badge text-bg-light">{toStatusLabel(summary.profile?.availabilityStatus)}</span>
+          <div className="dashboard-panel">
+            <div className="dashboard-panel__header"><h3>Mi avance general</h3><span className="profile-chip"><i className="bi bi-circle-fill" /> {toStatusLabel(summary.profile?.availabilityStatus)}</span></div>
+            <div className="dashboard-panel__body">
+              <div className="dashboard-chart-row mb-3"><div className="dashboard-donut" data-total={`${completionPercent}%`} style={{ '--chart-percent': `${completionPercent}%`, '--chart-color': '#1ca56f' }} /><div><strong>Perfil completado</strong><p className="small text-muted mb-0">Completa tu información para recibir mejores oportunidades.</p><Link to="/profesional/perfil" className="small">Completar perfil</Link></div></div>
+              <div className="small text-muted mb-2">Licencia SST: {summary.profile?.licenseStatus === 'valid' ? 'Vigente' : 'Pendiente de validar'}</div>
+              <div className="progress" style={{ height: 8 }}><div className="progress-bar bg-success" style={{ width: `${completionPercent}%` }} /></div>
             </div>
-            <div className="progress mb-2" style={{ height: 10 }}>
-              <div className={`progress-bar ${completionColor}`} style={{ width: `${completionPercent}%` }} />
-            </div>
-            <div className="small text-muted mb-2">Perfil completado: {completionPercent}%</div>
-            <ul className="small mb-0">
-              <li>Licencia SST: {summary.profile?.licenseStatus === 'valid' ? 'Vigente' : 'Pendiente de validar'}</li>
-              <li>Certificaciones: {me.certifications.length} registradas</li>
-              <li>Documentos: {me.documents.length} cargados</li>
-              <li>Vencimientos en 45 días: {totalExpiring}</li>
-            </ul>
           </div>
         </div>
 
         <div className="col-lg-6">
-          <div className="card card-bemc p-3 h-100">
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <h3 className="h6 mb-0">Notificaciones recientes</h3>
-              <span className="badge text-bg-danger">{unreadNotifications} sin leer</span>
+          <div className="dashboard-panel">
+            <div className="dashboard-panel__header"><h3>Notificaciones recientes</h3><span className="badge text-bg-danger">{unreadNotifications} sin leer</span></div>
+            <div className="dashboard-panel__body">
+              {recentNotifications.length === 0 ? <p className="small text-muted mb-0">No tienes notificaciones recientes.</p> : <ul className="dashboard-list">{recentNotifications.map((n) => <li key={n._id}><span><strong>{n.title}</strong><br /><small>{n.message}</small></span><small>Ahora</small></li>)}</ul>}
+              <Link to="/profesional/notificaciones" className="btn btn-sm btn-outline-primary mt-3">Ver todas</Link>
             </div>
-            {recentNotifications.length === 0 ? (
-              <p className="small text-muted mb-0">No tienes notificaciones recientes.</p>
-            ) : (
-              <ul className="list-unstyled mb-0">
-                {recentNotifications.map((n) => (
-                  <li key={n._id} className="border rounded p-2 mb-2">
-                    <div className="fw-semibold small">{n.title}</div>
-                    <div className="small text-muted">{n.message}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link to="/profesional/notificaciones" className="btn btn-sm btn-outline-primary mt-2">Ver todas</Link>
           </div>
         </div>
       </div>
