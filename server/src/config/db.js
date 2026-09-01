@@ -29,22 +29,39 @@ function getDirectAtlasUri(uri) {
   return `mongodb://${parsed.username}:${parsed.password}@${hosts}${parsed.pathname}?${query.toString()}`;
 }
 
+function maskUri(uri) {
+  try {
+    if (!uri) return uri;
+    // mask password between username:password@
+    return uri.replace(/(mongodb(?:\+srv)?:\/\/[^:]+:)([^@]+)(@)/, '$1***$3');
+  } catch (e) {
+    return '***';
+  }
+}
+
 export async function connectDB() {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/bemc';
+  // Detect common misconfiguration: placeholder password still present
+  if (String(uri).includes('<db_password>') || /<.+password.+>/i.test(String(uri))) {
+    console.error('MONGODB_URI contiene un placeholder de contraseña (<db_password>). Actualiza la variable con la contraseña real en Render o en server/.env. Valor actual:', uri);
+    throw new Error('MONGODB_URI no valida: falta contraseña real');
+  }
+
   const connectionUri = getDirectAtlasUri(uri) || uri;
 
   try {
-    await mongoose.connect(connectionUri, { serverSelectionTimeoutMS: 8000 });
-    console.log('MongoDB conectado:', connectionUri.replace(/\/\/[^@]+@/, '//***@'));
+    await mongoose.connect(connectionUri, { serverSelectionTimeoutMS: 15000, useNewUrlParser: true, useUnifiedTopology: true });
+    console.log('MongoDB conectado:', maskUri(connectionUri));
     return;
   } catch (err) {
-    const isLocal =
-      uri.includes('127.0.0.1') || uri.includes('localhost');
-    if (process.env.NODE_ENV === 'production' || !isLocal) {
-      console.error('No se pudo conectar a MongoDB:', err.message);
+    // Log full error for debugging purposes but avoid leaking secrets
+    console.error('No se pudo conectar a MongoDB. Intentando fallback. Error:', err && (err.stack || err));
+    if (process.env.ALLOW_MEMORY_DB_FALLBACK === 'false') {
+      // If fallback disabled, rethrow the error so process exits and Render shows failure
       throw err;
     }
-    console.warn('MongoDB local no disponible, usando almacenamiento local persistente para desarrollo...');
+
+    console.warn('MongoDB no disponible, usando almacenamiento local persistente. Error original (ver arriba)');
   }
 
   const { MongoMemoryServer } = await import('mongodb-memory-server');

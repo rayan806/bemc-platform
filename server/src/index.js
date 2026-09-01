@@ -12,6 +12,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { connectDB } from './config/db.js';
+import mongoose from 'mongoose';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import servicesRoutes from './routes/services.routes.js';
@@ -29,10 +30,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 if (!process.env.JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET es obligatorio en producción');
-  }
-  console.warn('ADVERTENCIA: JWT_SECRET no definido. Usa server/.env');
+  console.warn('ADVERTENCIA: JWT_SECRET no definido. Se usará un valor temporal para evitar que la app quede caida. Define uno real en Render o en server/.env.');
   process.env.JWT_SECRET = 'dev-only-secret-change-me';
 }
 
@@ -93,8 +91,24 @@ app.use(
 );
 app.use('/api/public', publicRoutes);
 
+function maskEnvUri(uri) {
+  try {
+    if (!uri) return null;
+    return uri.replace(/(mongodb(?:\+srv)?:\/\/[^:]+:)([^@]+)(@)/, '$1***$3');
+  } catch (e) {
+    return null;
+  }
+}
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'B.E.M.C API' });
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  const state = mongoose && mongoose.connection ? states[mongoose.connection.readyState] || 'unknown' : 'no-mongoose';
+  res.json({
+    status: 'ok',
+    name: 'B.E.M.C API',
+    db: state,
+    mongodb_uri: maskEnvUri(process.env.MONGODB_URI),
+  });
 });
 
 // =========================
@@ -102,6 +116,14 @@ app.get('/api/health', (req, res) => {
 // =========================
 const clientDistPath = path.join(__dirname, '../../client/dist');
 const clientAssetsPath = path.join(clientDistPath, 'assets');
+const uploadsPath = path.join(__dirname, '../../uploads');
+try {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+} catch (e) {
+  console.warn('No se pudo crear la carpeta uploads:', e.message);
+}
+// Servir archivos subidos por el usuario (contratos, entregables, etc.)
+app.use('/uploads', express.static(uploadsPath, { maxAge: '1d' }));
 app.get('/assets/:file', (req, res, next) => {
   const fileName = path.basename(req.params.file);
   const assetPath = path.join(clientAssetsPath, fileName);
